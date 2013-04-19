@@ -1,0 +1,80 @@
+Projektantrag:
+
+Beschreibung:
+	Bibliothek zum Management von Voxeldaten in einem unbegrenztem Raum:
+	- Laden und Speichern zum Dateisystem.
+	- Verwaltung und speicher-optimierte Lagerung der Daten im RAM.
+
+Brainstorming:
+	- Kümmert sich um das Laden und Speichern von Voxeln (=> Chunks).
+	- Voxel haben mehrere Datenlayer, welche im Ausgangszustand keinen Speicher einnehmen, sondern von einem Default-Wert repräsentiert werden.
+	- Von aussen hat man nur Zugriff auf Voxel-Ebene, die Chunks und Threads sind nur intern verfügbar.
+	- C-Interface um die Bibliothek leichter in anderen Sprachen einbindne zu können.
+	- Die Anwendung kann mit primitiven Objekten der Bibliothek sagen welche Voxel für sie gerade interessant sind, bzw welche bald interessant werden könnten.
+	- Frisch geladene Chunks, sowie Chunks welcher länger nicht mehr geändert wurden, werden komprimiert im Speicher gehalten.
+		- D.h. beim Laden könnten die komprimierten Voxel 1:1 im RAM landen.
+	- Das Laden/Entladen passiert in Threads.
+	- Die Applikation kann Events bzw Callbacks in der Bibliothek registrieren um über Block-Änderungen u.Ä. informiert zu werden.
+	- Die Applikation kann auch zusätzliche Daten für z.B. Tile-Entities verwalten lassen.
+		- Diese werden dann z.B. im entsprechenden Chunk gespeichert.
+
+Layer:
+	Haben einen Namen und einen Versionsstring.
+	Innerhalb der Anwendung werden sie über einen Index angesprochen.
+
+
+
+
+
+
+Chunks laden, wenn:
+- Ein Access-Objekt diese benötigt
+- Ein Pre-Load diese benötigt
+
+Chunks entladen, wenn:
+- Wenn sie seit einer bestimmten Zeit nicht mehr verwendet wurden.
+
+Zu ladene Chunks sollten nach Priorität sortiert werden.
+Preload- und Access-Objekte haben eine Priorität und priorisieren auch ihre Chunks.
+Z.B. dass die innenliegenden Chunks eines Volumes eine höhere Priorität als die aussenliegenden haben.
+
+Ein World Objekt hat einen Thread-Pool für RW-Jobs. R- und W-Jobs sollen gleichmäßig abgearbeitet werden.
+Mutex rwJobMutex;
+Condition newRWJobCondition;
+Thread[] rwJobThreadPool;
+int activeRJobs;
+int activeWJobs;
+list<RJob> rJobs;
+list<WJob> wJobs;
+
+addWJob( job ):
+    rwJobMutex.lock();
+        wJobs.push_back(job);
+        sortWJobs();
+        newRWJobCondition.signalOne();
+    rwJobMutex.unlock();
+
+rwJobThread():
+    while(true):
+        newRWJobCondition.wait();
+        if(activeRJobs > activeWJobs)
+            myNewJob = wJobs.pop();
+        else:
+            myNewJob = rJobs.pop();
+        myNewJob.run();
+
+
+- Chunk RefCounter
+- Zeitstempel seit Unreferenziert
+- Zeit die der Chunk referenziert wurde.
+- Zeitstempel die der Chunk existiert.
+- Daraus dann die anteilsweise Verwendung errechnen. :)
+und soooh
+- unloadUnusedChunks()
+- 
+
+Fragt sich, ob das mit der "anteilsweisen Verwendung" so gut ist.
+Das würde primär genutzt werden um Chunks, die statistisch oft verwendet werden,
+länger im Speicher zu halten.
+Wenn man nun aber die Chunks zu jemanden kopiert der die so garnicht verwendet ...?
+Erstmal weglassen. Kann man nacher ja immernoch gut einbauen. :)
