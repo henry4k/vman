@@ -125,40 +125,58 @@ public:
 
 
     /**
-     * Whether to automatically save modified chunks in regular intervals.
-     */
-    void setAutoSave( bool enable );
-
-    /**
-     * Timout after that unreferenced chunks may be unloaded.
+     * Timeout after that unreferenced chunks are unloaded.
      * `0` disables this functionallity.
      */
     void setUnusedChunkTimeout( int seconds );
 
     /**
-     * Should be less than `unusedChunkTimeout`.
-     * TODO
+     * Timeout after that unreferenced chunks are unloaded.
+     * @return `0` if disabled.
      */
-    void setServiceSleepTime( int seconds );
+    int getUnusedChunkTimeout() const;
+
+    /**
+     * Timeout after that modified chunks are saved to disk.
+     * `0` disables this functionallity.
+     */
+    void setModifiedChunkTimeout( int seconds );
+
+    /**
+     * Timeout after that modified chunks are saved to disk.
+     * @return `0` if disabled.
+     */
+    int getModifiedChunkTimeout() const;
 
     /**
      * Writes all modified chunks to disk.
      * Is a no-op if saving to disk has been disabled.
      */
-    void saveModifiedChunks();
-
-	/**
-	 *
-	 */
-	void addAccess( Access* access );
-	
-	/**
-	 *
-	 */
-	void removeAccess( Access* access );
+    //void saveModifiedChunks(); // TODO
 
     /**
-     *
+     * 
+     */
+    // void unloadUnusedChunks(); // TODO
+
+
+    enum ScheduledTaskType
+    {
+        UNLOAD_UNUSED_TASK,
+        SAVE_MODIFIED_TASK
+    };
+
+    /**
+     * Schedules tasks that will be run in the future.
+     * `scheduled_time = now + wait_duration`
+     * While the duration is defined by the tasks type.
+     * E.g. for the `UNLOAD_UNUSED_TASK` it uses getUnusedChunkTimeout().
+     */
+    void scheduleTask( ScheduledTaskType type, Chunk* chunk );
+
+
+    /**
+     * For logging vman specific messages.
      */
     void log( LogLevel level, const char* format, ... ) const;
 
@@ -182,6 +200,12 @@ private:
 	 */
 	Chunk* getChunkAt( int chunkX, int chunkY, int chunkZ, int priority );
 
+
+    /**
+     * Wipes a chunk out of existence.
+     */
+    void eraseChunk( Chunk* chunk );
+
     
     /**
      * Save or unload all unused chunks.
@@ -194,64 +218,80 @@ private:
 	std::vector<vmanLayer> m_Layers;
     int m_MaxLayerVoxelSize;
 	int m_ChunkEdgeLength;
-    bool m_AutoSave;
-    int m_UnusedChunkTimeout;
     int m_ServiceSleepTime;
 
     std::map<ChunkId,Chunk*> m_ChunkMap; // Dimension
     std::string m_BaseDir;
 	
-    std::list<Access*> m_AccessObjects; // Dimension ?
-
     tthread::mutex m_Mutex;
     bool m_StopThreads;
-
-    /**
-     * Regulary runs saveModifiedChunks() and unloadUnusedChunks().
-     */
-    tthread::thread m_ServiceThread;
-    static void ServiceThreadWrapper( void* worldInstance );
-    void serviceThreadFn();
 
     typedef tthread::lock_guard<tthread::mutex> lock_guard;
 
 
+    // --- Scheduled Tasks ---
+    
+    int m_UnusedChunkTimeout;
+    int m_ModifiedChunkTimeout;
+
+    struct ScheduledTask
+    {
+        time_t executionTime;
+        ScheduledTaskType type;
+        Chunk* chunk;
+    };
+
+    /**
+     * Internal version of `scheduleTask` with time parameter.
+     * Don't use this directly.
+     */
+    void scheduleTask( ScheduledTaskType type, Chunk* chunk, double seconds );
+
+    std::list<ScheduledTask> m_ScheduledTasks;
+    tthread::thread m_SchedulerThread;
+    tthread::condition_variable m_SchedulerReevaluateCondition;
+    static void SchedulerThreadWrapper( void* worldInstance );
+    void schedulerThreadFn();
+
+
+    // --- Load/Save Jobs ---
+
     enum JobType
     {
-        LOAD_JOB = 0,
-        SAVE_JOB = 1
+        INVALID_JOB,
+        LOAD_JOB,
+        SAVE_JOB
     };
 
     struct JobEntry
     {
         int priority;
-        JobType jobType;
-        ChunkId chunkId;
+        JobType type;
         Chunk* chunk;
     };
+
+    static JobEntry InvalidJob();
 
     tthread::condition_variable m_NewJobCondition;
 
     /**
      * Tries to find a job with the given chunk id.
-     * Returns NULL if no job was found.
+     * Returns an invalid job if nothing was found.
      */
-    JobEntry* findJobByChunkId( ChunkId chunkId );
+    JobEntry findJobByChunk( Chunk* chunk ) const;
 
     /**
      * Adds a job to the job queue.
      * May eventually merge it with another job.
-     * @param job The job pointer becomes invalid by calling this function.
      */
-    void addJob( JobEntry* job );
+    void addJob( JobType type, int priority, Chunk* chunk );
     
     /**
      * Finds a suitable job, removes it from the job list and returns it.
-     * So you have to delete it when you're done with it!
      */
-    JobEntry* getJob();
+    JobEntry getJob();
 
-    std::list<JobEntry*> m_JobList;
+    std::list<JobEntry> m_JobList;
     int m_ActiveLoadJobs;
     int m_ActiveSaveJobs;
     

@@ -60,23 +60,39 @@ std::string Chunk::ChunkIdToString( ChunkId chunkId )
 }
 */
 
-Chunk::Chunk( const World* world, int chunkX, int chunkY, int chunkZ ) :
+Chunk::Chunk( World* world, int chunkX, int chunkY, int chunkZ ) :
 	m_World(world),
     m_ChunkX(chunkX),
     m_ChunkY(chunkY),
     m_ChunkZ(chunkZ),
-	//m_Layers(world->getLayerCount(), NULL), // n layers initialized with NULL
+	m_Layers(world->getLayerCount(), NULL), // n layers initialized with NULL
     m_Modified(false)
 {
-    m_Layers.resize(world->getLayerCount());
-    for(int i = 0; i < m_Layers.size(); ++i)
-        m_Layers[i] = NULL;
-    // TODO: Just temporary!
 }
 
 Chunk::~Chunk()
 {
     assert(m_References == 0);
+}
+
+int Chunk::getChunkX() const
+{
+    return m_ChunkX;
+}
+
+int Chunk::getChunkY() const
+{
+    return m_ChunkY;
+}
+
+int Chunk::getChunkZ() const
+{
+    return m_ChunkZ;
+}
+
+ChunkId Chunk::getId() const
+{
+    return GenerateChunkId(m_ChunkX, m_ChunkY, m_ChunkZ);
 }
 
 void Chunk::initializeLayer( int index )
@@ -103,7 +119,7 @@ void Chunk::clearLayers()
         {
             delete[] m_Layers[i];
             m_Layers[i] = NULL;
-            m_Modified = true;
+            setModified();
         }
     }
 }
@@ -200,7 +216,6 @@ bool Chunk::loadFromFile()
             header.layerCount
         );
 
-        // TODO: Check header.version!
         if(header.version != ChunkFileVersion)
             throw "Incorrect file version.";
 
@@ -333,7 +348,7 @@ bool Chunk::saveToFile()
     }
 
     fclose(f);
-    m_Modified = false;
+    unsetModified();
     return true;
 }
 
@@ -350,7 +365,10 @@ void Chunk::releaseReference()
     assert(m_References > 0);
     m_References--;
     if(m_References == 0)
+    {
         m_ReferenceChangeTime = time(NULL);
+        m_World->scheduleTask(World::UNLOAD_UNUSED_TASK, this);
+    }
 }
 
 bool Chunk::isUnused() const
@@ -361,6 +379,26 @@ bool Chunk::isUnused() const
 bool Chunk::isModified() const
 {
     return m_Modified;
+}
+
+time_t Chunk::getModificationTime() const
+{
+    return m_ModificationTime;
+}
+
+void Chunk::setModified()
+{
+    if(m_Modified == false)
+    {
+        m_Modified = true;
+        m_ModificationTime = time(NULL);
+        m_World->scheduleTask(World::SAVE_MODIFIED_TASK, this);
+    }
+}
+
+void Chunk::unsetModified()
+{
+    m_Modified = false;
 }
 
 time_t Chunk::getReferenceChangeTime() const

@@ -17,12 +17,11 @@ World::World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, cons
 	m_Layers(&layers[0], &layers[layerCount]),
     m_MaxLayerVoxelSize(0),
 	m_ChunkEdgeLength(chunkEdgeLength),
-    m_AutoSave(false),
-    m_UnusedChunkTimeout(0),
-    m_ServiceSleepTime(10),
     m_BaseDir(), // Just to make it clear.
     m_StopThreads(false),
-    m_ServiceThread(ServiceThreadWrapper, this)
+    m_UnusedChunkTimeout(0),
+    m_ModifiedChunkTimeout(0),
+    m_SchedulerThread(SchedulerThreadWrapper, this)
 {
     if(baseDir != NULL)
         m_BaseDir = baseDir;
@@ -53,16 +52,14 @@ World::World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, cons
 
 World::~World()
 {
-	assert(m_AccessObjects.size() == 0);
-
-    saveModifiedChunks();
-
     m_Mutex.lock();
     m_StopThreads = true;
     m_Mutex.unlock();
 
-    if(m_ServiceThread.joinable())
-        m_ServiceThread.join();
+
+    assert(m_SchedulerThread.joinable());
+    m_SchedulerReevaluateCondition.notify_all();
+    m_SchedulerThread.join();
 
 
     m_NewJobCondition.notify_all();
@@ -74,6 +71,8 @@ World::~World()
             (*i)->join();
         delete *i;
     }
+
+
 
     std::map<ChunkId,Chunk*>::const_iterator j = m_ChunkMap.begin();
     for(; j != m_ChunkMap.end(); ++j)
@@ -140,119 +139,6 @@ std::string World::getChunkFileName( int chunkX, int chunkY, int chunkZ ) const
     return r;
 }
 
-void World::setAutoSave( bool enable )
-{
-    m_AutoSave = enable;
-}
-
-void World::setUnusedChunkTimeout( int seconds )
-{
-    assert(seconds >= 0);
-    m_UnusedChunkTimeout = seconds;
-}
-
-void World::setServiceSleepTime( int seconds )
-{
-    assert(seconds > 0);
-    m_ServiceSleepTime = seconds;
-}
-
-void World::unloadUnusedChunks()
-{
-    const time_t now = time(NULL);
-    
-    std::map<ChunkId,Chunk*>::iterator i = m_ChunkMap.begin();
-    for(; i != m_ChunkMap.end(); ++i)
-    {
-        assert(i->second == NULL);
-        if(
-                i->second->isUnused() &&
-                (difftime(now, i->second->getReferenceChangeTime()) >= m_UnusedChunkTimeout)
-        )
-        {
-            if(i->second->isModified())
-            {
-                JobEntry* job = new JobEntry();
-                job->priority = 0; // TODO: Should have minimum priority
-                job->jobType  = SAVE_JOB;
-                job->chunkId  = i->first;
-                job->chunk    = i->second; 
-
-                addJob(job);
-            }
-            else
-            {
-                delete i->second;
-                m_ChunkMap.erase(i);
-            }
-        }
-    }
-}
-
-void World::saveModifiedChunks()
-{
-    if(m_BaseDir.empty())
-        return;
-    
-    std::map<ChunkId,Chunk*>::iterator i = m_ChunkMap.begin();
-    for(; i != m_ChunkMap.end(); ++i)
-    {
-        assert(i->second == NULL);
-
-        JobEntry* job = new JobEntry();
-        job->priority = 0; // TODO: Should have minimum priority
-        job->jobType  = SAVE_JOB;
-        job->chunkId  = i->first;
-        job->chunk    = i->second; 
-
-        addJob(job);
-    }
-}
-
-void World::ServiceThreadWrapper( void* worldInstance )
-{
-    reinterpret_cast<World*>(worldInstance)->serviceThreadFn();
-}
-
-void World::serviceThreadFn()
-{
-    int sleepTime = 1;
-
-    while(true)
-    {
-        {
-            lock_guard guard(m_Mutex);
-
-            if(m_StopThreads)
-                break;
-
-            if(m_AutoSave)
-                saveModifiedChunks();
-            
-            unloadUnusedChunks();
-
-            sleepTime = m_ServiceSleepTime;
-        }
-
-        tthread::this_thread::sleep_for( tthread::chrono::seconds(sleepTime) );
-    }
-}
-
-void World::addAccess( Access* access )
-{
-	assert(access != NULL);
-	assert(std::find(m_AccessObjects.begin(), m_AccessObjects.end(), access) == m_AccessObjects.end());
-	m_AccessObjects.push_back(access);
-}
-
-void World::removeAccess( Access* access )
-{
-	std::list<Access*>::iterator i = std::find(
-		m_AccessObjects.begin(), m_AccessObjects.end(), access
-	);
-	assert(i != m_AccessObjects.end());
-   	m_AccessObjects.erase(i);
-}
 
 void World::log( LogLevel level, const char* format, ... ) const
 {
@@ -348,15 +234,7 @@ Chunk* World::getChunkAt( int chunkX, int chunkY, int chunkZ, int priority )
         Chunk* chunk = new Chunk(this, chunkX, chunkY, chunkZ);
 
         if(chunkFileExists(chunkX, chunkY, chunkZ))
-        {
-            JobEntry* job = new JobEntry();
-            job->priority = priority;
-            job->jobType  = LOAD_JOB;
-            job->chunkId  = id;
-            job->chunk    = chunk; 
-
-            addJob(job);
-        }
+            addJob(LOAD_JOB, priority, chunk);
 
 		m_ChunkMap.insert( std::pair<ChunkId,Chunk*>(id,chunk) );
 		return chunk;
@@ -364,39 +242,172 @@ Chunk* World::getChunkAt( int chunkX, int chunkY, int chunkZ, int priority )
 }
 
 
-/** Save/Load jobs **/
 
-World::JobEntry* World::findJobByChunkId( ChunkId chunkId )
+/* --- Scheduled Tasks --- */
+
+void World::setUnusedChunkTimeout( int seconds )
 {
-    std::list<JobEntry*>::const_iterator i = m_JobList.begin();
-    for(; i != m_JobList.end(); ++i)
-    {
-        if((*i)->chunkId == chunkId)
-            return *i;
-    }
-    return NULL;
+    assert(seconds >= 0);
+    m_UnusedChunkTimeout = seconds;
 }
 
-void World::addJob( JobEntry* job )
+int World::getUnusedChunkTimeout() const
+{
+    return m_UnusedChunkTimeout;
+}
+
+void World::setModifiedChunkTimeout( int seconds )
+{
+    assert(seconds >= 0);
+    m_ModifiedChunkTimeout = seconds;
+}
+
+int World::getModifiedChunkTimeout() const
+{
+    return m_ModifiedChunkTimeout;
+}
+
+void World::scheduleTask( ScheduledTaskType type, Chunk* chunk )
+{
+    double seconds = 0.0;
+    switch(type)
+    {
+        case UNLOAD_UNUSED_TASK:
+            seconds = getUnusedChunkTimeout();
+
+        case SAVE_MODIFIED_TASK:
+            seconds = getModifiedChunkTimeout();
+
+        default:
+            assert(false);
+    }
+    scheduleTask(type, chunk, seconds);
+}
+
+void World::scheduleTask( ScheduledTaskType type, Chunk* chunk, double seconds )
+{
+    assert(seconds >= 0.0);
+
+    const time_t now = time(NULL);
+    const struct tm* now_tv = gmtime(&now);
+    struct tm tv;
+    memcpy(&tv, &now_tv, sizeof(tv));
+    tv.tm_sec += (int)seconds;
+
+    ScheduledTask task;
+    task.executionTime = mktime(&tv);
+    task.type = type;
+    task.chunk = chunk;
+    
+    m_ScheduledTasks.push_back(task);
+}
+
+void World::SchedulerThreadWrapper( void* worldInstance )
+{
+    reinterpret_cast<World*>(worldInstance)->schedulerThreadFn();
+}
+
+void World::schedulerThreadFn()
+{
+    static const double NO_WAIT_EPSILON = 0.1; // In seconds
+
+    while(true)
+    {
+        lock_guard guard(m_Mutex);
+
+        while(m_ScheduledTasks.empty())
+            m_SchedulerReevaluateCondition.wait(m_Mutex);
+
+        if(m_ScheduledTasks.empty() && m_StopThreads)
+            break;
+        
+        const ScheduledTask task = m_ScheduledTasks.front();
+        m_ScheduledTasks.pop_front();
+
+        double waitTime = difftime(time(NULL), task.executionTime);
+        if(m_StopThreads) // Don't wait when the threads should finish their jobs.
+            waitTime = 0.0;
+        
+        if(waitTime > NO_WAIT_EPSILON)
+        {
+            const tthread::chrono::milliseconds waitMS(waitTime*1000);
+            //m_SchedulerReevaluateCondition.wait_for(m_Mutex, waitMS);
+        }
+
+        switch(task.type)
+        {
+            case UNLOAD_UNUSED_TASK:
+                if(task.chunk->isModified() == false)
+                {
+                    m_ChunkMap.erase(task.chunk->getId());
+                    delete task.chunk;
+                    break;
+                }
+                // If its still modified,
+                // pass it through to the SAVE_MODIFIED_TASK routine.
+                // Note that the save job should delete unreferenced chunks.
+                // TODO: ^- Really?
+
+            case SAVE_MODIFIED_TASK:
+                addJob(SAVE_JOB, 0, task.chunk); // TODO: Should have minimum priority
+                break;
+
+            default:
+                assert(false);
+        }
+    }
+}
+
+
+
+
+/* --- Load/Save Jobs --- */
+
+World::JobEntry World::InvalidJob()
+{
+    JobEntry job;
+    job.priority = 0;
+    job.type = INVALID_JOB;
+    job.chunk = NULL;
+    return job;
+}
+
+World::JobEntry World::findJobByChunk( Chunk* chunk ) const
+{
+    std::list<JobEntry>::const_iterator i = m_JobList.begin();
+    for(; i != m_JobList.end(); ++i)
+    {
+        if(i->chunk == chunk)
+            return *i;
+    }
+    return InvalidJob();
+}
+
+void World::addJob( JobType type, int priority, Chunk* chunk )
 {
     // Check if we're try to tear down already.
     assert(m_StopThreads == false);
 
-    const JobEntry* jobWithSameChunk = findJobByChunkId(job->chunkId);
-    if(jobWithSameChunk != NULL)
+    const JobEntry jobWithSameChunk = findJobByChunk(chunk);
+    if(jobWithSameChunk.type != INVALID_JOB)
     {
         // TODO: Ohaaa ... :[]
         assert(!"Unimplemented!");
     }
 
+    JobEntry job;
+    job.priority = priority;
+    job.type = type;
+    job.chunk = chunk;
+
     // Sort in the job.
-    std::list<JobEntry*>::iterator i = m_JobList.begin();
+    std::list<JobEntry>::iterator i = m_JobList.begin();
     for(; i != m_JobList.end(); ++i)
     {
         // This has the neat side effect that,
         // if there are jobs with equal priority,
         // new jobs are inserted *after* the old ones.
-        if(job->priority > (*i)->priority)
+        if(job.priority > i->priority)
         {
             m_JobList.insert(i, job);
             break;
@@ -408,11 +419,10 @@ void World::addJob( JobEntry* job )
         m_JobList.push_back(job);
 }
 
-World::JobEntry* World::getJob()
+World::JobEntry World::getJob()
 {
-    // Just a security check:
     if(m_JobList.empty())
-        return NULL;
+        return InvalidJob();
 
     // Save and load job should be distributed equally on the threads.
     // I.e. if more save than load jobs run, the latter one should be picked.
@@ -424,33 +434,23 @@ World::JobEntry* World::getJob()
     else
         favoredJob = SAVE_JOB; // We favor a save job.
 
-    JobEntry* jobEntry = NULL;      
-
     // Try to find our favored job in the list.
     // The list is sorted from high to low priority.
-    std::list<JobEntry*>::iterator i = m_JobList.begin();
+    std::list<JobEntry>::iterator i = m_JobList.begin();
     for(; i != m_JobList.end(); ++i)
     {
-        if((*i)->jobType == favoredJob)
+        if(i->type == favoredJob)
         {
-            jobEntry = *i;
+            const JobEntry job = *i;
             m_JobList.erase(i);
-            break;
+            return job;
         }
     }
 
     // The favored job type was not found. :(
-    if(jobEntry == NULL)
-    {
-        // We already checked this at the start.
-        assert(m_JobList.empty() == false);
-        jobEntry = m_JobList.front();
-        m_JobList.pop_front();
-    }
-
-    assert(jobEntry != NULL);
-
-    return jobEntry;
+    const JobEntry job = m_JobList.front();
+    m_JobList.pop_front();
+    return job;
 }
 
 void World::JobThreadWrapper(void* worldInstance)
@@ -464,7 +464,7 @@ void World::jobThreadFn()
 
     while(true)
     {
-        JobEntry* job = NULL;
+        JobEntry job = InvalidJob();
         
         {
             lock_guard guard(m_Mutex);
@@ -472,7 +472,7 @@ void World::jobThreadFn()
             
             job = getJob();
 
-            if(job == NULL)
+            if(job.type == INVALID_JOB)
             {
                 if(m_StopThreads)
                     break;
@@ -485,7 +485,7 @@ void World::jobThreadFn()
 
                 //log(LOG_DEBUG, "Got job %p\n", job);
                
-                if(job == NULL)
+                if(job.type == INVALID_JOB)
                 {
                     assert(m_StopThreads);
                     break;
@@ -493,21 +493,19 @@ void World::jobThreadFn()
             }
         }
         
-        switch(job->jobType)
+        switch(job.type)
         {
             case LOAD_JOB:
-                job->chunk->loadFromFile();
+                job.chunk->loadFromFile();
                 break;
 
             case SAVE_JOB:
-                job->chunk->saveToFile();
+                job.chunk->saveToFile();
                 break;
 
             default:
                 assert(false);
         }
-
-        delete job;
 
         tthread::this_thread::yield();
     }

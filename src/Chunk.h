@@ -20,8 +20,13 @@ public:
 	static ChunkId GenerateChunkId( int chunkX, int chunkY, int chunkZ );
 
 
-	Chunk( const World* world, int chunkX, int chunkY, int chunkZ );
+	Chunk( World* world, int chunkX, int chunkY, int chunkZ );
     ~Chunk();
+
+    int getChunkX() const;
+    int getChunkY() const;
+    int getChunkZ() const;
+    ChunkId getId() const;
 
 	/**
 	 * Will create a layer if it doesn't exists already.
@@ -71,15 +76,27 @@ public:
     bool isUnused() const;
 
     /**
+     * Timestamp since the reference count changed from or to 0.
+     * @see isUnused
+     */
+    time_t getReferenceChangeTime() const;
+
+    /**
      *
      */
     bool isModified() const;
 
     /**
-     * Timestamp since the reference count changed from or to 0.
-     * @see isUnused
+     * Timestamp of the first modification since last save event.
      */
-    time_t getReferenceChangeTime() const;
+    time_t getModificationTime() const;
+
+    /**
+     * If it wasn't modified before:
+     * Sets the modification flag, updates the modification time
+     * and adds the chunk to the modified list.
+     */
+    void setModified();
 
     /**
      *
@@ -100,7 +117,8 @@ private:
      */
     void clearLayers();
 
-	const World* m_World;
+	World* m_World;
+
     const int m_ChunkX;
     const int m_ChunkY;
     const int m_ChunkZ;
@@ -123,6 +141,19 @@ private:
 	 * and needs to be written to disk.
 	 */
 	bool m_Modified;
+
+
+    /**
+     * Timestamp of the first modification since last save event.
+     * Is updated each time, when m_Modified changes from false to true.
+     */
+    time_t m_ModificationTime;
+
+
+    /**
+     * Resets the modified flag.
+     */
+    void unsetModified();
 
 
     /**
