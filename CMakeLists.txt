@@ -5,7 +5,7 @@ LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 INCLUDE("CxxFlags")
 SET(CMAKE_CXX_FLAGS "${STRICT_CXX_FLAGS}")
 
-SET(TinyThreadSource "${CMAKE_SOURCE_DIR}/third-party/tinythread/source")
+SET(TinyThreadSource "${CMAKE_SOURCE_DIR}/third-party/tinythreadpp/source")
 INCLUDE_DIRECTORIES("${TinyThreadSource}")
 
 ADD_SUBDIRECTORY("src")
