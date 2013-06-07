@@ -71,8 +71,3 @@ void* vmanReadWriteVoxelLayer( const vmanAccess access, int x, int y, int z, int
     return ((vman::Access*)access)->readWriteVoxelLayer(x,y,z, layer);
 }
 
-void vmanUpdatePreloadedVolumes( const vmanWorld world, const vmanPreloadedVolume* volumes, int volumeCount )
-{
-    // TODO
-}
-

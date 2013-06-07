@@ -84,6 +84,8 @@ private:
 	Access( const Access& access );
 	Access& operator = ( const Access& access );
 
+	void* getVoxelLayer( int x, int y, int z, int layer, int mode ) const;
+
 	World* m_World;
     bool m_IsInvalidVolume;
 	bool m_IsLocked;

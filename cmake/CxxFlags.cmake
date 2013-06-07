@@ -61,7 +61,7 @@ ELSE()
 	SET(SharedFlags "-Wno-unknown-pragmas")
 	
 	SET(STRICT_CXX_FLAGS "${CommonFlags} -Werror -Wall -Wextra -pedantic ${SharedFlags}")
-	SET(STRICT_CXX_FLAGS "${STRICT_CXX_FLAGS} -Wmissing-include-dirs -Wpointer-arith -Wcast-qual -Winit-self")
+	SET(STRICT_CXX_FLAGS "${STRICT_CXX_FLAGS} -Wmissing-include-dirs -Wpointer-arith -Winit-self")
 	SET(STRICT_CXX_FLAGS "${STRICT_CXX_FLAGS} -Wno-variadic-macros -Wno-long-long -Wno-sign-compare -Wno-unused-parameter -Wno-unused-variable")
 
 	SET(LENIENT_CXX_FLAGS "${CommonFlags} ${SharedFlags}")

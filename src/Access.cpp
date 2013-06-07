@@ -23,6 +23,7 @@ Access::Access( World* world ) :
 Access::~Access()
 {
 	assert(m_IsLocked == false);
+    setVolume(NULL); // Unload chunks properly (dereference them)
 }
 
 void Access::setPriority( int priority )
@@ -32,6 +33,13 @@ void Access::setPriority( int priority )
 
 void Access::setVolume( const vmanVolume* volume )
 {
+    m_IsInvalidVolume = true;
+    for(int i = 0; i < m_Cache.size(); ++i)
+    {
+        m_Cache[i]->releaseReference();
+    }
+    m_Cache.clear();
+
 	if(volume != NULL)
 	{
 		m_IsInvalidVolume = false;
@@ -43,12 +51,14 @@ void Access::setVolume( const vmanVolume* volume )
             m_ChunkVolume.h *
             m_ChunkVolume.d;
         m_Cache.resize(chunkCount);
+
+        m_World->getMutex()->lock();
         m_World->getVolume(&m_ChunkVolume, &m_Cache[0], m_Priority);
-	}
-	else
-	{
-		m_IsInvalidVolume = true;
-        m_Cache.clear();
+        for(int i = 0; i < m_Cache.size(); ++i)
+        {
+            m_Cache[i]->addReference();
+        }
+        m_World->getMutex()->unlock(); // So noone can remove my cached chunks while i'm putting references on them
 	}
 }
 
@@ -79,7 +89,7 @@ bool Access::tryLock( int mode )
 {
 	assert(m_IsLocked == false);
 	m_AccessMode = mode;
-    
+
     for(int i = 0; i < m_Cache.size(); ++i)
     {
         if(m_Cache[i]->getMutex()->try_lock() == false)
@@ -122,32 +132,69 @@ bool InsideVolume( const vmanVolume* volume, int x, int y, int z )
 
 const void* Access::readVoxelLayer( int x, int y, int z, int layer ) const
 {
-    return readWriteVoxelLayer(x,y,z, layer);
+    return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS);
 }
 
 void* Access::readWriteVoxelLayer( int x, int y, int z, int layer ) const
 {
+    return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
+}
+
+void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
+{
 	assert(m_IsLocked == true);
-    assert(InsideVolume(&m_Volume, x,y,z));
-    
+
+	if((m_AccessMode & mode) != mode)
+	{
+	    m_World->log(LOG_ERROR, "Access mode not allowed!\n");
+	    return NULL;
+	}
+
+    m_World->log(LOG_ERROR, "readWriteVoxelLayer( %s ) in access volume (%s).\n",
+        CoordsToString(x,y,z).c_str(),
+        VolumeToString(&m_Volume).c_str()
+    );
+
+	if(InsideVolume(&m_Volume, x,y,z) == false)
+	{
+	    m_World->log(LOG_ERROR, "Voxel %s is not in access volume (%s).\n",
+	        CoordsToString(x,y,z).c_str(),
+	        VolumeToString(&m_Volume).c_str()
+	    );
+	    return NULL;
+	}
+
     const int edgeLength = m_World->getChunkEdgeLength();
     const int chunkX = x/edgeLength;
     const int chunkY = y/edgeLength;
     const int chunkZ = z/edgeLength;
+
+    // TODO: Temporary
+    if(InsideVolume(&m_ChunkVolume, chunkX, chunkY, chunkZ) == false)
+    {
+        m_World->log(LOG_ERROR, "Chunk %s is not in access volume (%s).\n",
+            CoordsToString(chunkX,chunkY,chunkZ).c_str(),
+            VolumeToString(&m_ChunkVolume).c_str()
+        );
+    }
 
     assert(InsideVolume(&m_ChunkVolume, chunkX, chunkY, chunkZ));
 
     Chunk* chunk = m_Cache[ Index3D(
         m_ChunkVolume.w,
         m_ChunkVolume.h,
-        m_ChunkVolume.d,    
-        
+        m_ChunkVolume.d,
+
         chunkX-m_ChunkVolume.x,
         chunkY-m_ChunkVolume.y,
         chunkZ-m_ChunkVolume.z
     ) ];
 
-    const int voxelSize = m_World->getLayer(layer)->voxelSize; 
+    // Check if mode includes write access.
+    if((mode & VMAN_WRITE_ACCESS) != 0)
+        chunk->setModified();
+
+    const int voxelSize = m_World->getLayer(layer)->voxelSize;
 
     return &reinterpret_cast<char*>( chunk->getLayer(layer) )[Index3D(
         voxelSize*edgeLength,

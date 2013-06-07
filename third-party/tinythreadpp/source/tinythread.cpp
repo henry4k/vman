@@ -21,6 +21,8 @@ freely, subject to the following restrictions:
     distribution.
 */
 
+#include <stdio.h>
+
 #include <exception>
 #include "tinythread.h"
 
@@ -112,21 +114,27 @@ cv_status::_enum condition_variable::_wait(const double seconds)
 #if defined(_TTHREAD_POSIX_)
 void condition_variable::_makeWaitTime(struct timespec* waitTime, double seconds)
 {
-      struct timeval tv;
-      long dt_sec, dt_usec;
+    struct timeval tv;
+    long dt_sec, dt_usec;
 
-      gettimeofday(&tv, NULL);
-      dt_sec = long(seconds);
-      dt_usec = long(seconds - double(dt_sec) * 1000000.0);
+    gettimeofday(&tv, NULL);
+    dt_sec = long(seconds);
+    dt_usec = long(seconds - double(dt_sec)) * 1000000L;
 
-      waitTime->tv_nsec = (tv.tv_usec + dt_usec) * 1000L;
-      if(waitTime->tv_nsec > 1000000000L)
-      {
-          waitTime->tv_nsec -= 1000000000L;
-          dt_sec++;
-      }
+    waitTime->tv_nsec = (tv.tv_usec + dt_usec) * 1000L;
+    if(waitTime->tv_nsec > 1000000000L)
+    {
+        waitTime->tv_nsec -= 1000000000L;
+        dt_sec++;
+    }
 
-      waitTime->tv_sec = tv.tv_sec + dt_sec;
+    waitTime->tv_sec = tv.tv_sec + dt_sec;
+
+    printf("%f => %d.%d\n",
+        seconds,
+        (int)dt_sec,
+        (int)dt_usec
+    );
 }
 #endif
 

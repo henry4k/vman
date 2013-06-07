@@ -71,10 +71,167 @@ rwJobThread():
 - Daraus dann die anteilsweise Verwendung errechnen. :)
 und soooh
 - unloadUnusedChunks()
-- 
+-
 
 Fragt sich, ob das mit der "anteilsweisen Verwendung" so gut ist.
 Das würde primär genutzt werden um Chunks, die statistisch oft verwendet werden,
 länger im Speicher zu halten.
 Wenn man nun aber die Chunks zu jemanden kopiert der die so garnicht verwendet ...?
 Erstmal weglassen. Kann man nacher ja immernoch gut einbauen. :)
+
+
+
+
+Array-Funktionen für das Access-Objekt:
+
+readVoxel( x, y, z, layer );
+readVoxels( volume, callback, context );
+
+void VoxelArrayRead( volume, const layers, context );
+
+
+
+
+
+
+
+Manager
+    const staticManager
+        Layer Definitionen
+        Chunk Kantenlänge
+        BaseDir
+
+    getWorld( int id )
+
+    Job-System
+        ...
+
+    Scheduling-System
+        scheduleTask( World*, Chunk*, TaskId, ... )
+
+    log-fn <- Thread-Safe
+
+World
+    map<ChunkId, Chunk>
+    getChunks
+
+Chunk
+    releaseReference -> Locks Manager :I
+    setModified -> Locks Manager :I
+        Beides wegen scheduleTask()
+
+
+
+
+
+
+
+
+
+Policy:
+    Mutex eines Objektes wird in der aufrufenden Funktion (also von aussen) gelockt.
+    Von innen wird nie gelockt.
+
+Chunk:
+    benutzt scheduleTask (scheduledTasks-Liste)
+
+World:
+    benutzt Chunks
+
+Access:
+    benutzt Chunks
+    benutzt World
+
+
+
+
+
+
+
+Es darf von jedem Task pro Chunk nur einen geben.
+Save darf nicht nach Unload kommen, in dem Fall müsste Save mit Unload ausgeführt werden.
+
+Meh.. das System hinkt an jeder Ecke.
+
+
+v1:
+    Bei entsprechenden Ereignissen wird ein Task in einen Scheduler eingetragen.
+    Dieser wartet und bearbeitet die Tasks an ihrem Fälligkeitsdatum.
+
+    + Läuft nur wenn es etwas zu tun gibt
+    - Ist recht komplex, insbesondere da die Tasks bestimmte restriktionen haben.
+      (Save darf nicht nach Unload usw.)
+
+
+v2:
+    Ein Service-Thread schaut alle N Sekunden in jedem Chunk nach ob
+    dieser gespeichert und/oder entladen werden muss.
+
+    + Simpel und (deswegen) zuverlässig
+    - Thread läuft ständig
+
+
+v3:
+    Mischung aus v1 und v2:
+    Bei entsprechenden Ereignissen wird in einem Scheduler eingetragen, dass der Chunk geprüft werden muss.
+    Am Fälligkeitsdatum schaut der Scheduler im Chunk nach ob dieser entladen und/oder gespeichert werden muss.
+
+    +- Mal sehen. :)
+
+
+
+
+Statische Voxel und dynamische Voxel:
+
+Statische Voxel-Layer haben eine feste Größe, welche sich nicht ändert. (ausser man kovertiert sie)
+Bei dynamischen Voxel-Layer können die Voxel ihre Größe zur Laufzeit anpassen.
+
+Voxel Layer enthält Pointer, welche auf die jeweiligen Daten verweisen.
+Offline werden diese als Index-Werte gespeichert, welche auf einen Bereich in einen Daten-Array verweisen.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

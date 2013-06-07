@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <vector>
+#include <string>
 #include <tinythread.h>
 
 
@@ -19,6 +20,8 @@ class Chunk
 public:
 	static ChunkId GenerateChunkId( int chunkX, int chunkY, int chunkZ );
 
+    static std::string ChunkCoordsToString( int chunkX, int chunkY, int chunkZ );
+    static std::string ChunkIdToString( ChunkId chunkId );
 
 	Chunk( World* world, int chunkX, int chunkY, int chunkZ );
     ~Chunk();
@@ -28,6 +31,8 @@ public:
     int getChunkZ() const;
     ChunkId getId() const;
 
+    std::string toString() const;
+
 	/**
 	 * Will create a layer if it doesn't exists already.
 	 * Data is initialized to `0`.
@@ -36,7 +41,7 @@ public:
 	 * @see World#getChunkEdgeLength
 	 */
 	void* getLayer( int index );
-	
+
 	/**
 	 * Const pointer version of getLayer.
 	 * @return `NULL` if a layer doesn't exists.
@@ -60,26 +65,23 @@ public:
     /**
      * Increments the internal reference counter.
      * Chunks with reference won't be unloaded.
+     * Is thread safe.
      * @see releaseReference
      */
     void addReference();
 
     /**
      * Decrements the internal reference counter.
+     * Is thread safe.
      * @see addReference
      */
     void releaseReference();
 
     /**
+     * Is thread safe.
      * Whether the chunk may be unloaded.
      */
     bool isUnused() const;
-
-    /**
-     * Timestamp since the reference count changed from or to 0.
-     * @see isUnused
-     */
-    time_t getReferenceChangeTime() const;
 
     /**
      *
@@ -99,12 +101,15 @@ public:
     void setModified();
 
     /**
-     *
+     * Use this to lock the object while
+     * using methods that aren't thread safe.
      */
     tthread::mutex* getMutex();
 
 
 private:
+    static void UnpackChunkId( ChunkId chunkId, int* outX, int* outY, int* outZ );
+
 	Chunk( const Chunk& chunk );
 	Chunk& operator = ( const Chunk& chunk );
 
@@ -130,7 +135,7 @@ private:
      * Voxels have to be initialized with `0`!
      */
 	std::vector<char*> m_Layers;
-	
+
 	/**
 	 * Which layers are compressed.
 	 */
@@ -159,15 +164,9 @@ private:
     /**
      * Reference count on this chunk.
      */
-    int m_References;
+    tthread::atomic_int m_References;
 
-    /**
-     * Timestamp since the reference count changed from or to 0.
-     */
-    time_t m_ReferenceChangeTime;
-
-
-    tthread::mutex m_Mutex;
+    mutable tthread::mutex m_Mutex;
 };
 
 }

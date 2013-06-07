@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include <iostream> // TODO: Temporary
+
 #include "Util.h"
 #include "Access.h"
 #include "World.h"
@@ -17,11 +19,24 @@ World::World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, cons
 	m_Layers(&layers[0], &layers[layerCount]),
     m_MaxLayerVoxelSize(0),
 	m_ChunkEdgeLength(chunkEdgeLength),
+	m_ChunkMap(),
     m_BaseDir(), // Just to make it clear.
+    m_Mutex(),
     m_StopThreads(false),
-    m_UnusedChunkTimeout(0),
-    m_ModifiedChunkTimeout(0),
-    m_SchedulerThread(SchedulerThreadWrapper, this)
+    m_LogMutex(),
+
+    m_UnusedChunkTimeout(4),
+    m_ModifiedChunkTimeout(3),
+    m_ScheduledChecksMutex(),
+    m_ScheduledChecks(),
+    m_SchedulerReevaluateCondition(),
+    m_SchedulerThread(NULL),
+
+    m_NewJobCondition(),
+    m_JobList(),
+    m_ActiveLoadJobs(0),
+    m_ActiveSaveJobs(0),
+    m_ThreadPool()
 {
     if(baseDir != NULL)
         m_BaseDir = baseDir;
@@ -29,7 +44,7 @@ World::World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, cons
     for(int i = 0; i < m_Layers.size(); ++i)
     {
         const vmanLayer* layer = &m_Layers[i];
-        
+
         assert(layer->name != NULL);
         assert(strlen(layer->name) > 0);
         assert(strlen(layer->name) <= VMAN_MAX_LAYER_NAME_LENGTH);
@@ -37,7 +52,7 @@ World::World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, cons
         assert(layer->revision > 0);
         assert(layer->serializeFn != NULL);
         assert(layer->deserializeFn != NULL);
-        
+
         if(layer->voxelSize > m_MaxLayerVoxelSize)
             m_MaxLayerVoxelSize = layer->voxelSize;
     }
@@ -48,6 +63,8 @@ World::World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, cons
     {
         m_ThreadPool[i] = new tthread::thread(JobThreadWrapper, this);
     }
+
+    m_SchedulerThread = new tthread::thread(SchedulerThreadWrapper, this);
 }
 
 World::~World()
@@ -57,13 +74,13 @@ World::~World()
     m_Mutex.unlock();
 
 
-    assert(m_SchedulerThread.joinable());
+    assert(m_SchedulerThread->joinable());
     m_SchedulerReevaluateCondition.notify_all();
-    m_SchedulerThread.join();
+    m_SchedulerThread->join();
+    delete m_SchedulerThread;
 
 
     m_NewJobCondition.notify_all();
-
     std::vector<tthread::thread*>::iterator i = m_ThreadPool.begin();
     for(; i != m_ThreadPool.end(); ++i)
     {
@@ -73,13 +90,16 @@ World::~World()
     }
 
 
-
     std::map<ChunkId,Chunk*>::const_iterator j = m_ChunkMap.begin();
     for(; j != m_ChunkMap.end(); ++j)
     {
-        assert(j->second == NULL);
+        assert(j->second != NULL);
         delete j->second;
     }
+
+    // DEBUG:
+    m_SchedulerReevaluateCondition.notify_all();
+    m_NewJobCondition.notify_all();
 }
 
 int World::getLayerCount() const
@@ -132,16 +152,21 @@ std::string World::getChunkFileName( int chunkX, int chunkY, int chunkZ ) const
 
     char buffer[256];
     sprintf(buffer,"%d-%d-%d",chunkX,chunkY,chunkZ);
-    
+
     std::string r = m_BaseDir;
     r += DirSep;
     r += buffer;
     return r;
 }
 
-
 void World::log( LogLevel level, const char* format, ... ) const
 {
+    lock_guard guard(m_LogMutex);
+
+    std::cout << "   " << tthread::this_thread::get_id() << "   ";
+    std::cout.flush();
+
+    /*
     fprintf(stderr,"[VMAN %p ", (const void*)this);
     switch(level)
     {
@@ -150,6 +175,7 @@ void World::log( LogLevel level, const char* format, ... ) const
         case LOG_WARNING: fprintf(stderr,"WARNING] "); break;
         case LOG_ERROR:   fprintf(stderr,"ERROR] ");   break;
     }
+    */
 
     va_list vl;
     va_start(vl,format);
@@ -166,15 +192,40 @@ int CeilDiv( int a, int b )
     return a/b + ((a%b != 0) ? 1 : 0);
 }
 
+/**
+ * StepUp(15,8) = 16
+ * StepUp(16,8) = 24
+ */
+inline int StepUp( int value, int stepSize )
+{
+    return value + (stepSize - (value % stepSize));
+}
+
+inline int StepDown( int value, int stepSize )
+{
+    return (value / stepSize) * stepSize;
+}
+
 void World::voxelToChunkVolume( const vmanVolume* voxelVolume, vmanVolume* chunkVolume )
 {
     chunkVolume->x = voxelVolume->x / m_ChunkEdgeLength;
     chunkVolume->y = voxelVolume->y / m_ChunkEdgeLength;
     chunkVolume->z = voxelVolume->z / m_ChunkEdgeLength;
 
-    chunkVolume->w = CeilDiv(voxelVolume->w, m_ChunkEdgeLength);
-    chunkVolume->h = CeilDiv(voxelVolume->h, m_ChunkEdgeLength);
-    chunkVolume->d = CeilDiv(voxelVolume->d, m_ChunkEdgeLength);
+    const int w = StepUp(voxelVolume->x + voxelVolume->w, m_ChunkEdgeLength) - StepDown(voxelVolume->x, m_ChunkEdgeLength);
+    const int h = StepUp(voxelVolume->y + voxelVolume->h, m_ChunkEdgeLength) - StepDown(voxelVolume->y, m_ChunkEdgeLength);
+    const int d = StepUp(voxelVolume->z + voxelVolume->d, m_ChunkEdgeLength) - StepDown(voxelVolume->z, m_ChunkEdgeLength);
+
+    chunkVolume->w = CeilDiv(w, m_ChunkEdgeLength);
+    chunkVolume->d = CeilDiv(d, m_ChunkEdgeLength);
+    chunkVolume->h = CeilDiv(h, m_ChunkEdgeLength);
+
+    /*
+    log(LOG_DEBUG, "voxelVolume(%s) => chunkVolume(%s)\n",
+        VolumeToString(voxelVolume).c_str(),
+        VolumeToString(chunkVolume).c_str()
+    );
+    */
 }
 
 void World::getVolume( const vmanVolume* chunkVolume, Chunk** chunksOut, int priority )
@@ -182,8 +233,6 @@ void World::getVolume( const vmanVolume* chunkVolume, Chunk** chunksOut, int pri
     assert(chunkVolume != NULL);
     assert(chunksOut != NULL);
 
-    lock_guard guard(m_Mutex);
-    
     for(int x = 0; x < chunkVolume->w; ++x)
     {
         for(int y = 0; y < chunkVolume->h; ++y)
@@ -210,35 +259,82 @@ bool World::chunkFileExists( int chunkX, int chunkY, int chunkZ )
 {
     if(m_BaseDir.empty())
         return false;
-
-    FILE* f = fopen(getChunkFileName(chunkX, chunkY, chunkZ).c_str(), "rb");
-    if(f == NULL)
-        return false;
-    fclose(f);
-    return true;
+    const std::string fileName = getChunkFileName(chunkX, chunkY, chunkZ);
+    return GetFileType(fileName.c_str()) == FILE_TYPE_REGULAR;
 }
 
+// TODO: Make sure that chunks returned by this get referenced .. or they may become zombies.
 Chunk* World::getChunkAt( int chunkX, int chunkY, int chunkZ, int priority )
 {
 	ChunkId id = Chunk::GenerateChunkId(chunkX, chunkY, chunkZ);
-	
-    std::map<ChunkId,Chunk*>::iterator it = m_ChunkMap.find(id);
-	if(it != m_ChunkMap.end())
-	{
-		return it->second;
-	}
-	else
-	{
-        log(LOG_DEBUG, "Try loading chunk %d/%d/%d ..\n", chunkX, chunkY, chunkZ);
+    log(LOG_DEBUG, "getChunkAt %s\n",
+        CoordsToString(chunkX, chunkY, chunkZ).c_str()
+    );
 
-        Chunk* chunk = new Chunk(this, chunkX, chunkY, chunkZ);
+    Chunk* chunk = getLoadedChunkById(id);
+
+	if(chunk == NULL)
+	{
+        log(LOG_DEBUG, "Try loading chunk %s ..\n",
+            CoordsToString(chunkX, chunkY, chunkZ).c_str()
+        );
+
+        chunk = new Chunk(this, chunkX, chunkY, chunkZ);
 
         if(chunkFileExists(chunkX, chunkY, chunkZ))
             addJob(LOAD_JOB, priority, chunk);
 
 		m_ChunkMap.insert( std::pair<ChunkId,Chunk*>(id,chunk) );
-		return chunk;
 	}
+
+	return chunk;
+}
+
+Chunk* World::getLoadedChunkById( ChunkId id )
+{
+    std::map<ChunkId,Chunk*>::iterator it = m_ChunkMap.find(id);
+	if(it != m_ChunkMap.end())
+	{
+	    assert(id == it->second->getId());
+		return it->second;
+	}
+	else
+	{
+	    return NULL;
+	}
+}
+
+bool World::checkChunk( Chunk* chunk )
+{
+    chunk->getMutex()->lock();
+
+    bool saveChunk = false;
+    if(chunk->isModified())
+    {
+        if(getModifiedChunkTimeout() < 0)
+            saveChunk = false;
+        else if(getModifiedChunkTimeout() == 0)
+            saveChunk = true;
+        else if(difftime(time(NULL), chunk->getModificationTime()) >= getModifiedChunkTimeout())
+            saveChunk = true;
+    }
+
+    bool unloadChunk = chunk->isUnused();
+
+    chunk->getMutex()->unlock();
+
+    if(saveChunk)
+    {
+        addJob(SAVE_JOB, 0, chunk); // TODO: Should have minimum priority
+    }
+    else if(unloadChunk)
+    {
+        m_ChunkMap.erase(chunk->getId());
+        delete chunk;
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -247,8 +343,7 @@ Chunk* World::getChunkAt( int chunkX, int chunkY, int chunkZ, int priority )
 
 void World::setUnusedChunkTimeout( int seconds )
 {
-    assert(seconds >= 0);
-    m_UnusedChunkTimeout = seconds;
+    m_UnusedChunkTimeout = (seconds < 0) ? -1 : seconds;
 }
 
 int World::getUnusedChunkTimeout() const
@@ -258,8 +353,7 @@ int World::getUnusedChunkTimeout() const
 
 void World::setModifiedChunkTimeout( int seconds )
 {
-    assert(seconds >= 0);
-    m_ModifiedChunkTimeout = seconds;
+    m_ModifiedChunkTimeout = (seconds < 0) ? -1 : seconds;
 }
 
 int World::getModifiedChunkTimeout() const
@@ -267,24 +361,42 @@ int World::getModifiedChunkTimeout() const
     return m_ModifiedChunkTimeout;
 }
 
-void World::scheduleTask( ScheduledTaskType type, Chunk* chunk )
+void World::scheduleCheck( CheckCause cause, Chunk* chunk )
 {
-    double seconds = 0.0;
-    switch(type)
+    int seconds = 0.0;
+    switch(cause)
     {
-        case UNLOAD_UNUSED_TASK:
+        case CHECK_CAUSE_UNUSED:
             seconds = getUnusedChunkTimeout();
+            break;
 
-        case SAVE_MODIFIED_TASK:
+        case CHECK_CAUSE_MODIFIED:
             seconds = getModifiedChunkTimeout();
+            break;
 
         default:
             assert(false);
     }
-    scheduleTask(type, chunk, seconds);
+
+    if(seconds < 0)
+    {
+        return;
+    }
+    else if(seconds == 0)
+    {
+        checkChunk(chunk);
+    }
+    else
+    {
+        log(LOG_DEBUG, "scheduling check for chunk %s because of %d\n",
+            chunk->toString().c_str(),
+            cause
+        );
+        scheduleCheck(chunk, seconds);
+    }
 }
 
-void World::scheduleTask( ScheduledTaskType type, Chunk* chunk, double seconds )
+void World::scheduleCheck( Chunk* chunk, double seconds )
 {
     assert(seconds >= 0.0);
 
@@ -294,12 +406,13 @@ void World::scheduleTask( ScheduledTaskType type, Chunk* chunk, double seconds )
     memcpy(&tv, &now_tv, sizeof(tv));
     tv.tm_sec += (int)seconds;
 
-    ScheduledTask task;
-    task.executionTime = mktime(&tv);
-    task.type = type;
-    task.chunk = chunk;
-    
-    m_ScheduledTasks.push_back(task);
+    ScheduledCheck check;
+    check.executionTime = mktime(&tv);
+    check.chunkId = chunk->getId();
+
+    m_ScheduledChecksMutex.lock();
+    m_ScheduledChecks.push_back(check); // TODO: Sort in correctly
+    m_ScheduledChecksMutex.unlock();
 }
 
 void World::SchedulerThreadWrapper( void* worldInstance )
@@ -315,45 +428,48 @@ void World::schedulerThreadFn()
     {
         lock_guard guard(m_Mutex);
 
-        while(m_ScheduledTasks.empty())
-            m_SchedulerReevaluateCondition.wait(m_Mutex);
+        ScheduledCheck check;
 
-        if(m_ScheduledTasks.empty() && m_StopThreads)
-            break;
-        
-        const ScheduledTask task = m_ScheduledTasks.front();
-        m_ScheduledTasks.pop_front();
-
-        double waitTime = difftime(time(NULL), task.executionTime);
-        if(m_StopThreads) // Don't wait when the threads should finish their jobs.
-            waitTime = 0.0;
-        
-        if(waitTime > NO_WAIT_EPSILON)
         {
-            const tthread::chrono::milliseconds waitMS(waitTime*1000);
-            //m_SchedulerReevaluateCondition.wait_for(m_Mutex, waitMS);
+            lock_guard scheduledTasksGuard(m_ScheduledChecksMutex);
+
+            while(m_ScheduledChecks.empty())
+            {
+                m_ScheduledChecksMutex.unlock();
+                const tthread::chrono::seconds waitTime(1);
+                m_SchedulerReevaluateCondition.wait_for(m_Mutex, waitTime);
+                m_ScheduledChecksMutex.lock();
+
+                if(m_ScheduledChecks.empty() && m_StopThreads)
+                    return;
+            }
+
+            check = m_ScheduledChecks.front();
+            m_ScheduledChecks.pop_front();
         }
 
-        switch(task.type)
+        const double waitTime = m_StopThreads ? 0.0 : difftime(time(NULL), check.executionTime);
+
+        if(waitTime > NO_WAIT_EPSILON)
         {
-            case UNLOAD_UNUSED_TASK:
-                if(task.chunk->isModified() == false)
-                {
-                    m_ChunkMap.erase(task.chunk->getId());
-                    delete task.chunk;
-                    break;
-                }
-                // If its still modified,
-                // pass it through to the SAVE_MODIFIED_TASK routine.
-                // Note that the save job should delete unreferenced chunks.
-                // TODO: ^- Really?
+            const tthread::chrono::seconds waitTime(waitTime);
+            m_SchedulerReevaluateCondition.wait_for(m_Mutex, waitTime);
+        }
 
-            case SAVE_MODIFIED_TASK:
-                addJob(SAVE_JOB, 0, task.chunk); // TODO: Should have minimum priority
-                break;
+        Chunk* chunk = getLoadedChunkById(check.chunkId);
+        if(chunk == NULL)
+        {
+            log(LOG_DEBUG, "scheduled check for chunk %s failed: invalid id\n",
+                Chunk::ChunkIdToString(check.chunkId).c_str()
+            );
+        }
+        else
+        {
+            log(LOG_DEBUG, "running scheduled check for chunk %s\n",
+                chunk->toString().c_str()
+            );
 
-            default:
-                assert(false);
+            checkChunk(chunk);
         }
     }
 }
@@ -385,6 +501,11 @@ World::JobEntry World::findJobByChunk( Chunk* chunk ) const
 
 void World::addJob( JobType type, int priority, Chunk* chunk )
 {
+    log(LOG_DEBUG, "added job %d for chunk %s\n",
+        type,
+        chunk->toString().c_str()
+    );
+
     // Check if we're try to tear down already.
     assert(m_StopThreads == false);
 
@@ -417,6 +538,9 @@ void World::addJob( JobType type, int priority, Chunk* chunk )
     // If there is no job that has a lower priority like us ..
     if(i == m_JobList.end())
         m_JobList.push_back(job);
+
+    // Notify one waiting thread, that there is a new job available
+    m_NewJobCondition.notify_one();
 }
 
 World::JobEntry World::getJob()
@@ -427,7 +551,7 @@ World::JobEntry World::getJob()
     // Save and load job should be distributed equally on the threads.
     // I.e. if more save than load jobs run, the latter one should be picked.
     // (If one exists)
-    
+
     JobType favoredJob;
     if(m_ActiveSaveJobs > m_ActiveLoadJobs)
         favoredJob = LOAD_JOB; // We favor a load job.
@@ -465,11 +589,11 @@ void World::jobThreadFn()
     while(true)
     {
         JobEntry job = InvalidJob();
-        
+
         {
             lock_guard guard(m_Mutex);
             // ^- Unlocks also when break is called.
-            
+
             job = getJob();
 
             if(job.type == INVALID_JOB)
@@ -484,33 +608,50 @@ void World::jobThreadFn()
                 job = getJob();
 
                 //log(LOG_DEBUG, "Got job %p\n", job);
-               
+
                 if(job.type == INVALID_JOB)
                 {
                     assert(m_StopThreads);
                     break;
                 }
             }
-        }
-        
-        switch(job.type)
-        {
-            case LOAD_JOB:
-                job.chunk->loadFromFile();
-                break;
 
-            case SAVE_JOB:
-                job.chunk->saveToFile();
-                break;
+            switch(job.type)
+            {
+                case LOAD_JOB:
+                    if(job.chunk->isUnused())
+                    {
+                        log(LOG_WARNING, "Canceled load job of chunk %s, because it's unused and would be deleted immediately.",
+                            job.chunk->toString().c_str()
+                        );
+                    }
+                    else
+                    {
+                        job.chunk->loadFromFile();
+                    }
+                    break;
 
-            default:
-                assert(false);
+                case SAVE_JOB:
+                    job.chunk->saveToFile();
+                    break;
+
+                default:
+                    assert(false);
+            }
         }
+
+        checkChunk(job.chunk);
+        // ^- For deleting unused chunks directly after saving them to disk
 
         tthread::this_thread::yield();
     }
 
     //log(LOG_DEBUG, "Thread stopped.\n");
+}
+
+tthread::mutex* World::getMutex()
+{
+    return &m_Mutex;
 }
 
 

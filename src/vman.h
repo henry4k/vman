@@ -188,23 +188,6 @@ VMAN_API const void* vmanReadVoxelLayer( const vmanAccess access, int x, int y, 
 VMAN_API void* vmanReadWriteVoxelLayer( const vmanAccess access, int x, int y, int z, int layer );
 
 
-// -- PreloadVolume --
-
-/**
- * Defines a volume where chunks are preloaded.
- * Additionally a movement preditiction of the volume is supplied.
- */
-typedef struct
-{
-	vmanVolume volume;
-	float mx, my, mz; // Predicted movement in voxels per second.
-} vmanPreloadedVolume;
-
-/**
- * Updates the internal list of preloaded volumes.
- */
-VMAN_API void vmanUpdatePreloadedVolumes( const vmanWorld world, const vmanPreloadedVolume* volumes, int volumeCount );
-
 #ifdef __cplusplus
 }
 #endif

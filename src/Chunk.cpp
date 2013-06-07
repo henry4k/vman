@@ -30,10 +30,21 @@ ChunkId Chunk::GenerateChunkId( int chunkX, int chunkY, int chunkZ )
 	helper.pos.z = chunkZ;
 	helper.pos.w = 0;
 
+    /*
+    printf("\n{%d|%d|%d} =>\n{%d|%d|%d} = #%08lX\n",
+        chunkX,
+        chunkY,
+        chunkZ,
+        helper.pos.x,
+        helper.pos.y,
+        helper.pos.z,
+        helper.id
+    );
+    */
+
 	return helper.id;
 }
 
-/*
 void Chunk::UnpackChunkId( ChunkId chunkId, int* outX, int* outY, int* outZ )
 {
 	assert(sizeof(int16_t)*4 == sizeof(ChunkId));
@@ -46,19 +57,15 @@ void Chunk::UnpackChunkId( ChunkId chunkId, int* outX, int* outY, int* outZ )
     *outX = helper.pos.x;
     *outY = helper.pos.y;
     *outZ = helper.pos.z;
-    assert(helper.pos.z == 0); // See GenerateChunkId
+    assert(helper.pos.w == 0); // See GenerateChunkId
 }
 
 std::string Chunk::ChunkIdToString( ChunkId chunkId )
 {
     int x, y, z;
     UnpackChunkId(chunkId, &x, &y, &z);
-
-    char buffer[128];
-    sprintf(buffer, "%d/%d/%d", x, y, z);
-    return buffer;
+    return CoordsToString(x,y,z);
 }
-*/
 
 Chunk::Chunk( World* world, int chunkX, int chunkY, int chunkZ ) :
 	m_World(world),
@@ -93,6 +100,13 @@ int Chunk::getChunkZ() const
 ChunkId Chunk::getId() const
 {
     return GenerateChunkId(m_ChunkX, m_ChunkY, m_ChunkZ);
+}
+
+std::string Chunk::toString() const
+{
+    char buffer[32];
+    sprintf(buffer, "%p %d|%d|%d", (void*)this, m_ChunkX, m_ChunkY, m_ChunkZ);
+    return buffer;
 }
 
 void Chunk::initializeLayer( int index )
@@ -142,7 +156,7 @@ const void* Chunk::getConstLayer( int index ) const
 
 /*
     Chunk file format:
-    
+
     Header:
         uint32 version
         uint32 edgeLength
@@ -192,7 +206,7 @@ bool Chunk::loadFromFile()
     const int voxelsPerChunk = m_World->getVoxelsPerChunk();
 
     std::string fileName = m_World->getChunkFileName(m_ChunkX, m_ChunkY, m_ChunkZ);
-    
+
     FILE* f = fopen(fileName.c_str(), "rb");
     if(f == NULL)
     {
@@ -265,7 +279,7 @@ bool Chunk::loadFromFile()
                 fseek(f, layerInfo->fileOffset, SEEK_SET);
                 if(fread(&buffer[0], voxelsPerChunk*layer->voxelSize, 1, f) != 1)
                     throw "Read error in layer.";
-                
+
                 m_Layers[i] = new char[voxelsPerChunk*layer->voxelSize];
                 layer->deserializeFn(&buffer[0], m_Layers[i], voxelsPerChunk*layer->voxelSize);
             }
@@ -294,7 +308,9 @@ bool Chunk::saveToFile()
     const int voxelsPerChunk = m_World->getVoxelsPerChunk();
 
     std::string fileName = m_World->getChunkFileName(m_ChunkX, m_ChunkY, m_ChunkZ);
-    
+
+    MakePath(fileName.c_str());
+
     FILE* f = fopen(fileName.c_str(), "wb"); // TODO: Check
     if(f == NULL)
     {
@@ -356,18 +372,14 @@ bool Chunk::saveToFile()
 void Chunk::addReference()
 {
     m_References++;
-    if(m_References == 1)
-        m_ReferenceChangeTime = time(NULL);
 }
 
 void Chunk::releaseReference()
 {
     assert(m_References > 0);
-    m_References--;
-    if(m_References == 0)
+    if(--m_References == 0)
     {
-        m_ReferenceChangeTime = time(NULL);
-        m_World->scheduleTask(World::UNLOAD_UNUSED_TASK, this);
+        m_World->scheduleCheck(World::CHECK_CAUSE_UNUSED, this);
     }
 }
 
@@ -392,7 +404,7 @@ void Chunk::setModified()
     {
         m_Modified = true;
         m_ModificationTime = time(NULL);
-        m_World->scheduleTask(World::SAVE_MODIFIED_TASK, this);
+        m_World->scheduleCheck(World::CHECK_CAUSE_MODIFIED, this);
     }
 }
 
@@ -400,12 +412,6 @@ void Chunk::unsetModified()
 {
     m_Modified = false;
 }
-
-time_t Chunk::getReferenceChangeTime() const
-{
-    return m_ReferenceChangeTime;
-}
-
 
 tthread::mutex* Chunk::getMutex()
 {

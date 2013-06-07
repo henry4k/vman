@@ -2,11 +2,22 @@
 #define __VMAN_UTIL_H__
 
 #include <stdint.h>
+#include <tinythread.h>
+#include <string>
+
+#include "vman.h"
+
+#if defined(_WIN32) || defined(__WIN32__)
+    #if !defined(__WINDOWS__)
+        #define __WINDOWS__
+    #endif
+#endif
+
 
 namespace vman
 {
     // --- Logic ---
-    
+
     /*
     template<class T>
     inline bool InclusiveInside( T min, T value, T max )
@@ -22,10 +33,9 @@ namespace vman
     */
 
 
-
-
     // --- byte order ---
-    extern bool IsLittleEndian;
+
+    extern const bool IsLittleEndian;
 
     inline uint16_t EndianSwap( uint16_t n )
     {
@@ -51,11 +61,24 @@ namespace vman
 
 
     // --- fs path ---
-    extern char DirSep;
+
+    extern const char DirSep;
+
+    enum FileType
+    {
+        FILE_TYPE_INVALID,
+        FILE_TYPE_UNKNOWN,
+        FILE_TYPE_REGULAR,
+        FILE_TYPE_DIRECTORY
+    };
+
+    FileType GetFileType( const char* path );
+    bool MakeDirectory( const char* path );
+    bool MakePath( const char* path );
 
 
     // --- multi dimensional arrays --
-    
+
     inline int Index2D(
         int w, int h,
         int x, int y
@@ -71,6 +94,18 @@ namespace vman
     {
         return x + y*w + z*w*h;
     }
+
+
+    // --- Threads ---
+
+    typedef tthread::lock_guard<tthread::mutex> lock_guard;
+
+
+    // --- string ---
+
+    std::string CoordsToString( int x, int y, int z );
+
+    std::string VolumeToString( const vmanVolume* volume );
 }
 
 #endif

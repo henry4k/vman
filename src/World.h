@@ -42,28 +42,33 @@ public:
 
 
 	/**
+     * Is thread safe.
 	 * @return The edge length of the chunks cube.
 	 */
 	int getChunkEdgeLength() const;
 
     /**
+     * Is thread safe.
      * @return The amount of voxels a chunk contains.
      * `edgeLength^3`
      */
     int getVoxelsPerChunk() const;
 
     /**
+     * Is thread safe.
      * @return The maximum size a voxel may occupy.
      */
     int getMaxLayerVoxelSize() const;
 
 
 	/**
+     * Is thread safe.
 	 * @return The amount of voxel layers registered.
 	 */
 	int getLayerCount() const;
 
 	/**
+     * Is thread safe.
 	 * @return A read only pointer to the layer definition
 	 * or `NULL` when something went wrong. (e.g. out of bounds)
 	 * @see getLayerCount
@@ -72,6 +77,7 @@ public:
 
     /**
      * Searches for a layer with the given name and returns its index.
+     * Is thread safe.
      * @return The layers index or `-1` on failure.
      */
     int getLayerIndexByName( const char* name ) const;
@@ -95,13 +101,14 @@ public:
     /**
      * Converts a voxel volume to an chunk volume.
      * I.e. the chunks that include the given voxels.
+     * Is thread safe.
      */
     void voxelToChunkVolume( const vmanVolume* voxelVolume, vmanVolume* chunkVolume );
 
 
 	/**
      * Get the chunks of the given coordinates.
-	 * 
+	 *
 	 * Creates a chunk if it doesn't exists yet.
      * Chunks that need to be loaded from disk are locked.
      *
@@ -110,7 +117,7 @@ public:
      * It is filled with the appropriate chunk pointers.
      * Access them with the Index3D() function.
      *
-     * @param chunkVolume 
+     * @param chunkVolume
      * The volume that shall be retrieved.
      *
      * @param chunksOut
@@ -126,25 +133,25 @@ public:
 
     /**
      * Timeout after that unreferenced chunks are unloaded.
-     * `0` disables this functionallity.
+     * Negative values disable this behaviour.
      */
     void setUnusedChunkTimeout( int seconds );
 
     /**
      * Timeout after that unreferenced chunks are unloaded.
-     * @return `0` if disabled.
+     * @return Timeout or `-1` if disabled.
      */
     int getUnusedChunkTimeout() const;
 
     /**
      * Timeout after that modified chunks are saved to disk.
-     * `0` disables this functionallity.
+     * Negative values disable this behaviour.
      */
     void setModifiedChunkTimeout( int seconds );
 
     /**
      * Timeout after that modified chunks are saved to disk.
-     * @return `0` if disabled.
+     * @return Timeout or `-1` if disabled.
      */
     int getModifiedChunkTimeout() const;
 
@@ -155,30 +162,38 @@ public:
     //void saveModifiedChunks(); // TODO
 
     /**
-     * 
+     *
      */
     // void unloadUnusedChunks(); // TODO
 
 
-    enum ScheduledTaskType
+    enum CheckCause
     {
-        UNLOAD_UNUSED_TASK,
-        SAVE_MODIFIED_TASK
+        CHECK_CAUSE_UNUSED,
+        CHECK_CAUSE_MODIFIED
     };
 
     /**
      * Schedules tasks that will be run in the future.
      * `scheduled_time = now + wait_duration`
      * While the duration is defined by the tasks type.
-     * E.g. for the `UNLOAD_UNUSED_TASK` it uses getUnusedChunkTimeout().
+     * E.g. for the `CHECK_CAUSE_UNUSED` it uses getUnusedChunkTimeout().
      */
-    void scheduleTask( ScheduledTaskType type, Chunk* chunk );
+    void scheduleCheck( CheckCause cause, Chunk* chunk );
 
 
     /**
      * For logging vman specific messages.
+     * Is thread safe.
      */
     void log( LogLevel level, const char* format, ... ) const;
+
+
+    /**
+     * Use this to lock the object while
+     * using methods that aren't thread safe.
+     */
+    tthread::mutex* getMutex();
 
 
 private:
@@ -190,9 +205,9 @@ private:
 
 	/**
      * Get the chunk of the given coordinates.
-	 * 
+	 *
      * Note that these are not "voxel coordinates".
-	 *- `chunkX = voxelX / chunkEdgeLength`
+	 * `chunkX = voxelX / chunkEdgeLength`
 	 * Creates the chunk if it doesn't exists yet.
      * The function may block while loading a chunk from disk.
      * @param priority Priority when loading a chunk from disk.
@@ -200,56 +215,63 @@ private:
 	 */
 	Chunk* getChunkAt( int chunkX, int chunkY, int chunkZ, int priority );
 
-
     /**
-     * Wipes a chunk out of existence.
+     * Get the chunk with the given id.
+     * @return The chunk with the given id or `NULL` if its not loaded/available.
      */
-    void eraseChunk( Chunk* chunk );
+    Chunk* getLoadedChunkById( ChunkId id );
 
-    
-    /**
-     * Save or unload all unused chunks.
-     * Modified chunsk are just saved instead and once the save job is done the next call of to this function will unload them.
-     * This is okay, because this functions is intended to be called regulary.
+
+	/**
+	 * Checks if a chunk should be saved or unloaded and runs these actions.
+	 * Note that this function uses the chunks mutex.
+     * @return `true` if the chunk was deleted.
      */
-    void unloadUnusedChunks();
+	bool checkChunk( Chunk* chunk );
 
 
 	std::vector<vmanLayer> m_Layers;
     int m_MaxLayerVoxelSize;
 	int m_ChunkEdgeLength;
-    int m_ServiceSleepTime;
 
     std::map<ChunkId,Chunk*> m_ChunkMap; // Dimension
     std::string m_BaseDir;
-	
-    tthread::mutex m_Mutex;
+
+    mutable tthread::mutex m_Mutex;
     bool m_StopThreads;
 
-    typedef tthread::lock_guard<tthread::mutex> lock_guard;
 
 
-    // --- Scheduled Tasks ---
-    
+    mutable tthread::mutex m_LogMutex;
+
+
+    // --- Scheduled Checks ---
+
     int m_UnusedChunkTimeout;
     int m_ModifiedChunkTimeout;
 
-    struct ScheduledTask
+    struct ScheduledCheck
     {
         time_t executionTime;
-        ScheduledTaskType type;
-        Chunk* chunk;
+        ChunkId chunkId;
     };
 
     /**
-     * Internal version of `scheduleTask` with time parameter.
+     * Internal version of `scheduleCheck` with time parameter.
      * Don't use this directly.
      */
-    void scheduleTask( ScheduledTaskType type, Chunk* chunk, double seconds );
+    void scheduleCheck( Chunk* chunk, double seconds );
 
-    std::list<ScheduledTask> m_ScheduledTasks;
-    tthread::thread m_SchedulerThread;
+    /**
+     * This list needs its own mutex,
+     * because its heavily used by the chunks.
+     */
+    mutable tthread::mutex m_ScheduledChecksMutex;
+    std::list<ScheduledCheck> m_ScheduledChecks;
     tthread::condition_variable m_SchedulerReevaluateCondition;
+
+    tthread::thread* m_SchedulerThread;
+
     static void SchedulerThreadWrapper( void* worldInstance );
     void schedulerThreadFn();
 
@@ -285,7 +307,7 @@ private:
      * May eventually merge it with another job.
      */
     void addJob( JobType type, int priority, Chunk* chunk );
-    
+
     /**
      * Finds a suitable job, removes it from the job list and returns it.
      */
@@ -294,7 +316,7 @@ private:
     std::list<JobEntry> m_JobList;
     int m_ActiveLoadJobs;
     int m_ActiveSaveJobs;
-    
+
     std::vector<tthread::thread*> m_ThreadPool;
     static void JobThreadWrapper(void* worldInstance);
     void jobThreadFn();
