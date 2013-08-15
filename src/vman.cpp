@@ -9,15 +9,45 @@
     everything else should be done in the apropriate methods.
 */
 
-vmanWorld vmanCreateWorld( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir )
+
+void vmanPanicExit()
 {
-    return (vmanWorld)new vman::World(layers, layerCount, chunkEdgeLength, baseDir);
+	vman::World::PanicExit();
+}
+
+vmanWorld vmanCreateWorld( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics )
+{
+    return (vmanWorld)new vman::World(layers, layerCount, chunkEdgeLength, baseDir, enableStatistics);
 }
 
 void vmanDeleteWorld( const vmanWorld world )
 {
     assert(world != NULL);
     delete (const vman::World*)world;
+}
+
+void vmanSetUnusedChunkTimeout( const vmanWorld world, int seconds )
+{
+    assert(world != NULL);
+    ((vman::World*)world)->setUnusedChunkTimeout(seconds);
+}
+
+void vmanSetModifiedChunkTimeout( const vmanWorld world, int seconds )
+{
+    assert(world != NULL);
+    ((vman::World*)world)->setModifiedChunkTimeout(seconds);
+}
+
+void vmanResetStatistics( const vmanWorld world )
+{
+    assert(world != NULL);
+    ((vman::World*)world)->resetStatistics();
+}
+
+bool vmanGetStatistics( const vmanWorld world, vmanStatistics* statisticsDestination )
+{
+    assert(world != NULL);
+    return ((vman::World*)world)->getStatistics(statisticsDestination);
 }
 
 vmanAccess vmanCreateAccess( const vmanWorld world )

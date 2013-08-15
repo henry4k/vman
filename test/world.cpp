@@ -34,7 +34,7 @@ void TestLayersForEquallity( const vmanLayer* a, const vmanLayer* b )
 
 int main()
 {
-    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
+    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
 
     assert(world.getLayerCount() == LAYER_COUNT);
     assert(world.getMaxLayerVoxelSize() == 1);

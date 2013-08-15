@@ -20,8 +20,8 @@ union ChunkIdHelper
 
 ChunkId Chunk::GenerateChunkId( int chunkX, int chunkY, int chunkZ )
 {
-	assert(sizeof(int16_t)*4 == sizeof(ChunkId));
 	// Size has to match, since there must be no undefined space in the id.
+	assert(sizeof(int16_t)*4 == sizeof(ChunkId));
 
     ChunkIdHelper helper;
 
@@ -29,18 +29,6 @@ ChunkId Chunk::GenerateChunkId( int chunkX, int chunkY, int chunkZ )
 	helper.pos.y = chunkY;
 	helper.pos.z = chunkZ;
 	helper.pos.w = 0;
-
-    /*
-    printf("\n{%d|%d|%d} =>\n{%d|%d|%d} = #%08lX\n",
-        chunkX,
-        chunkY,
-        chunkZ,
-        helper.pos.x,
-        helper.pos.y,
-        helper.pos.z,
-        helper.id
-    );
-    */
 
 	return helper.id;
 }
@@ -79,7 +67,10 @@ Chunk::Chunk( World* world, int chunkX, int chunkY, int chunkZ ) :
 
 Chunk::~Chunk()
 {
+	if(m_World->getBaseDir() != NULL)
+		assert(m_Modified == false);
     assert(m_References == 0);
+    clearLayers(true);
 }
 
 int Chunk::getChunkX() const
@@ -104,28 +95,24 @@ ChunkId Chunk::getId() const
 
 std::string Chunk::toString() const
 {
-    char buffer[32];
-    sprintf(buffer, "%p %d|%d|%d", (void*)this, m_ChunkX, m_ChunkY, m_ChunkZ);
-    return buffer;
+    return Format("%p %d|%d|%d", (void*)this, m_ChunkX, m_ChunkY, m_ChunkZ);
 }
 
 void Chunk::initializeLayer( int index )
 {
-	assert(m_Layers[index] == NULL);
-	const vmanLayer* layer = m_World->getLayer(index);
+    const vmanLayer* layer = m_World->getLayer(index);
 	assert(layer != NULL);
 
     const int bytes = m_World->getVoxelsPerChunk()*layer->voxelSize;
 
+    assert(m_Layers[index] == NULL);
 	m_Layers[index] = new char[bytes];
 	memset(m_Layers[index], 0, bytes);
 
-    m_World->log(LOG_DEBUG, "%d/%d/%d: Initialized layer %d\n",
-        m_ChunkX, m_ChunkY, m_ChunkZ, index
-    );
+    setModified();
 }
 
-void Chunk::clearLayers()
+void Chunk::clearLayers( bool silent )
 {
     for(int i = 0; i < m_Layers.size(); ++i)
     {
@@ -133,7 +120,8 @@ void Chunk::clearLayers()
         {
             delete[] m_Layers[i];
             m_Layers[i] = NULL;
-            setModified();
+			if(!silent)
+				setModified();
         }
     }
 }
@@ -144,6 +132,7 @@ void* Chunk::getLayer( int index )
 		return NULL;
 	if(m_Layers[index] == NULL)
 		initializeLayer(index);
+    setModified();
 	return m_Layers[index];
 }
 
@@ -197,6 +186,10 @@ static const int ChunkFileVersion = 1;
 
 bool Chunk::loadFromFile()
 {
+	m_World->incStatistic(STATISTIC_CHUNK_LOAD_OPS);
+
+	m_World->log(LOG_DEBUG, "Loading chunk %s from file ..\n", toString().c_str());
+
     if(m_World->getBaseDir() == NULL)
     {
         assert(!"Probably redundant.");
@@ -219,16 +212,14 @@ bool Chunk::loadFromFile()
         // -- Read header --
         ChunkFileHeader header;
         if(fread(&header, sizeof(header), 1, f) != 1)
-            throw "Read error in header.";
+            throw "Read error in file header.";
         header.version = LittleEndian(header.version);
         header.edgeLength = LittleEndian(header.edgeLength);
         header.layerCount = LittleEndian(header.layerCount);
-        m_World->log(LOG_DEBUG, "%s: version=%d edgeLength=%d layerCount=%d\n",
-            fileName.c_str(),
-            header.version,
-            header.edgeLength,
-            header.layerCount
-        );
+
+        m_World->log(LOG_DEBUG, "version: %d\n", header.version);
+        m_World->log(LOG_DEBUG, "edgeLength: %d\n", header.edgeLength);
+        m_World->log(LOG_DEBUG, "layerCount: %d\n", header.layerCount);
 
         if(header.version != ChunkFileVersion)
             throw "Incorrect file version.";
@@ -240,21 +231,19 @@ bool Chunk::loadFromFile()
         {
             ChunkFileLayerInfo* layerInfo = &layerInfos[i];
             if(fread(layerInfo, sizeof(ChunkFileLayerInfo), 1, f) != 1)
-                throw "Read error in layer list.";
+                throw Format("Read error in layer info %d", i);
             layerInfo->voxelSize = LittleEndian(layerInfo->voxelSize);
             layerInfo->revision = LittleEndian(layerInfo->revision);
             layerInfo->fileOffset = LittleEndian(layerInfo->fileOffset);
-            m_World->log(LOG_DEBUG, "%s layer %d: name=%s voxelSize=%d revision=%d fileOffset=%d\n",
-                fileName.c_str(), i,
-                layerInfo->name,
-                layerInfo->voxelSize,
-                layerInfo->revision,
-                layerInfo->fileOffset
-            );
+
+            m_World->log(LOG_DEBUG, "[layer %d] name: '%s'\n", i, layerInfo->name);
+            m_World->log(LOG_DEBUG, "[layer %d] voxelSize: %d\n", i, layerInfo->voxelSize);
+            m_World->log(LOG_DEBUG, "[layer %d] revision: %d\n", i, layerInfo->revision);
+            m_World->log(LOG_DEBUG, "[layer %d] fileOffset: %d\n", i, layerInfo->fileOffset);
 
             if(m_World->getLayerIndexByName(layerInfo->name) == -1)
             {
-                m_World->log(LOG_INFO,"%s: Ignoring chunk layer '%s'.\n", fileName.c_str(), layerInfo->name);
+                m_World->log(LOG_INFO, "%s: Ignoring chunk layer '%s'.\n", fileName.c_str(), layerInfo->name);
             }
         }
 
@@ -278,18 +267,19 @@ bool Chunk::loadFromFile()
 
                 fseek(f, layerInfo->fileOffset, SEEK_SET);
                 if(fread(&buffer[0], voxelsPerChunk*layer->voxelSize, 1, f) != 1)
-                    throw "Read error in layer.";
+                    throw Format("Read error in layer %d.", i);
 
                 m_Layers[i] = new char[voxelsPerChunk*layer->voxelSize];
                 layer->deserializeFn(&buffer[0], m_Layers[i], voxelsPerChunk*layer->voxelSize);
             }
         }
     }
-    catch(const char* e)
+    catch(const std::string e)
     {
-        m_World->log(LOG_ERROR, "%s: %s\n", fileName.c_str(), e);
+        m_World->log(LOG_ERROR, "%s: %s\n", fileName.c_str(), e.c_str());
         fclose(f);
         clearLayers();
+		assert(false);
         return false;
     }
 
@@ -299,11 +289,17 @@ bool Chunk::loadFromFile()
 
 bool Chunk::saveToFile()
 {
+	m_World->incStatistic(STATISTIC_CHUNK_SAVE_OPS);
+
+	m_World->log(LOG_DEBUG, "Saving chunk %s to file ..\n", toString().c_str());
+
     if(m_World->getBaseDir() == NULL)
     {
         assert(!"Probably redundant.");
         return false;
     }
+
+    assert(m_Layers.size() > 0);
 
     const int voxelsPerChunk = m_World->getVoxelsPerChunk();
 
@@ -319,8 +315,6 @@ bool Chunk::saveToFile()
     }
 
     // -- Write header ---
-    uint32_t headerSize = sizeof(ChunkFileHeader) + sizeof(ChunkFileLayerInfo)*m_Layers.size();
-
     ChunkFileHeader header;
     header.version = LittleEndian( ChunkFileVersion );
     header.edgeLength = LittleEndian( m_World->getChunkEdgeLength() );
@@ -330,6 +324,8 @@ bool Chunk::saveToFile()
             ++usedLayers;
     header.layerCount = LittleEndian( usedLayers );
     fwrite(&header, sizeof(header), 1, f);
+
+    const uint32_t headerSize = sizeof(ChunkFileHeader) + sizeof(ChunkFileLayerInfo)*usedLayers;
 
     // -- Write layer list --
     uint32_t fileOffset = headerSize;
@@ -355,12 +351,15 @@ bool Chunk::saveToFile()
     }
 
     // -- Write actual layers --
-    std::vector<char> buffer(voxelsPerChunk * m_World->getMaxLayerVoxelSize());
+    std::vector<char> buffer(voxelsPerChunk * m_World->getMaxLayerVoxelSize()); // TODO: This buffer could be thread local ...
     for(int i = 0; i < m_Layers.size(); ++i)
     {
-        const vmanLayer* layer = m_World->getLayer(i);
-        layer->serializeFn(m_Layers[i], &buffer[0], voxelsPerChunk);
-        fwrite(&buffer[0], voxelsPerChunk*layer->voxelSize, 1, f); // TODO: Check
+        if(m_Layers[i] != NULL)
+        {
+            const vmanLayer* layer = m_World->getLayer(i);
+            layer->serializeFn(m_Layers[i], &buffer[0], voxelsPerChunk);
+            fwrite(&buffer[0], voxelsPerChunk*layer->voxelSize, 1, f); // TODO: Check
+        }
     }
 
     fclose(f);
@@ -372,6 +371,7 @@ bool Chunk::saveToFile()
 void Chunk::addReference()
 {
     m_References++;
+    //m_World->log(LOG_DEBUG, "%p references++ = %d\n", this, (int)m_References);
 }
 
 void Chunk::releaseReference()
@@ -381,6 +381,7 @@ void Chunk::releaseReference()
     {
         m_World->scheduleCheck(World::CHECK_CAUSE_UNUSED, this);
     }
+    //m_World->log(LOG_DEBUG, "%p references-- = %d\n", this, (int)m_References);
 }
 
 bool Chunk::isUnused() const

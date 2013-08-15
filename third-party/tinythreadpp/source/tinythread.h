@@ -920,10 +920,11 @@ class thread {
     /// @param[in] aFunction A function pointer to a function of type:
     ///          <tt>void fun(void * arg)</tt>
     /// @param[in] aArg Argument to the thread function.
+    /// @param[in] name Thread name.
     /// @note This constructor is not fully compatible with the standard C++
     /// thread class. It is more similar to the pthread_create() (POSIX) and
     /// CreateThread() (Windows) functions.
-    thread(void (*aFunction)(void *), void * aArg);
+    thread(void (*aFunction)(void *), void * aArg, const char* name = NULL);
 
     /// Destructor.
     /// @note If the thread is joinable upon destruction, @c std::terminate()
@@ -950,6 +951,9 @@ class thread {
 
     /// Return the thread ID of a thread object.
     id get_id() const;
+
+	/// Returns the name of a thread object.
+	std::string get_name() const;
 
     /// Get the native handle for this thread.
     /// @note Under Windows, this is a @c HANDLE, and under POSIX systems, this
@@ -1050,6 +1054,9 @@ class thread::id {
 namespace this_thread {
   /// Return the thread ID of the calling thread.
   thread::id get_id();
+
+  /// Return the name of the calling thread.
+  std::string get_name();
 
   /// Yield execution to another thread.
   /// Offers the operating system the opportunity to schedule another thread

@@ -107,7 +107,7 @@ public:
     tthread::mutex* getMutex();
 
 
-private:
+//private:
     static void UnpackChunkId( ChunkId chunkId, int* outX, int* outY, int* outZ );
 
 	Chunk( const Chunk& chunk );
@@ -120,7 +120,7 @@ private:
      * Deletes all layers and resets them to `NULL`.
      * If at least one layer was deleted `m_Modified` will be set.
      */
-    void clearLayers();
+    void clearLayers( bool silent = false );
 
 	World* m_World;
 

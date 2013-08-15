@@ -4,12 +4,14 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <set>
 #include <string>
 #include <time.h>
 #include <tinythread.h>
 
 #include "vman.h"
 #include "Chunk.h"
+#include "JobEntry.h"
 
 
 namespace vman
@@ -27,6 +29,25 @@ enum LogLevel
     LOG_ERROR
 };
 
+enum Statistic
+{
+	STATISTIC_CHUNK_GET_HITS = 0,
+	STATISTIC_CHUNK_GET_MISSES,
+
+	STATISTIC_CHUNK_LOAD_OPS,
+	STATISTIC_CHUNK_SAVE_OPS,
+	STATISTIC_CHUNK_UNLOAD_OPS,
+	
+	STATISTIC_VOLUME_READ_HITS,
+	STATISTIC_VOLUME_WRITE_HITS,
+	
+	STATISTIC_MAX_LOADED_CHUNKS,
+	STATISTIC_MAX_SCHEDULED_CHECKS,
+	STATISTIC_MAX_ENQUEUED_JOBS,
+
+	STATISTIC_COUNT
+};
+
 
 class World
 {
@@ -36,8 +57,9 @@ public:
 	 * @param layerCount The arrays length.
 	 * @param chunkEdgeLength Internal chunk edge length.
      * @param baseDir May be `NULL`, then nothing is stored on disk.
+     * @param enableStatistics Whether statistics should be enabled.
 	 */
-	World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir );
+	World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enabledStatistics );
 	~World();
 
 
@@ -85,6 +107,7 @@ public:
 
     /**
      * Directory where the chunks are stored.
+     * Is thread safe.
      * @return Base dir or `NULL` if saving to disk has been disabled.
      */
     const char* getBaseDir() const;
@@ -93,10 +116,17 @@ public:
     /**
      * Generates the file name where a specific chunk could be stored.
      * Note that if the base dir is `NULL` the file name will be empty.
+     * Is thread safe.
      * @see getBaseDir
      */
     std::string getChunkFileName( int chunkX, int chunkY, int chunkZ ) const;
 
+
+    /**
+     * Converts voxel to chunk coordinates.
+     * Is thread safe.
+     */
+    void voxelToChunkCoordinates( const int voxelX, const int voxelY, const int voxelZ, int* chunkX, int* chunkY, int* chunkZ );
 
     /**
      * Converts a voxel volume to an chunk volume.
@@ -159,7 +189,7 @@ public:
      * Writes all modified chunks to disk.
      * Is a no-op if saving to disk has been disabled.
      */
-    //void saveModifiedChunks(); // TODO
+	void saveModifiedChunks();
 
     /**
      *
@@ -189,6 +219,49 @@ public:
     void log( LogLevel level, const char* format, ... ) const;
 
 
+	/**
+	 * Resets all statistics to zero.
+	 * Is thread safe.
+	 */
+	void resetStatistics();
+
+
+	/**
+	 * Increments a statistic.
+	 * Is thread safe.
+	 */
+	void incStatistic( Statistic statistic, int amount = 1 );
+
+
+	/**
+	 * Decrements a statistic.
+	 * Is thread safe.
+	 */
+	void decStatistic( Statistic statistic, int amount = 1 );
+
+
+	/**
+	 * Sets the value if its greater than the current one.
+	 * Is thread safe.
+	 */
+	void minStatistic( Statistic statistic, int value );
+
+
+	/**
+	 * Sets the value if its lower than the current one.
+	 * Is thread safe.
+	 */
+	void maxStatistic( Statistic statistic, int value );
+
+
+	/**
+     * Writes the current statistics to `statisticsDestination`.
+     * @param statisticsDestination Statistics are written to this structure.
+     * @return whether the operation succeeded. May return `false` even if statistics were enabled.
+	 */
+	bool getStatistics( vmanStatistics* statisticsDestination ) const;
+
+
     /**
      * Use this to lock the object while
      * using methods that aren't thread safe.
@@ -196,9 +269,20 @@ public:
     tthread::mutex* getMutex();
 
 
+	/**
+	 * Call this function on abnormal or abprupt program termination.
+	 */
+	static void PanicExit();
+	
+
 private:
 	World( const World& world );
 	World& operator = ( const World& world );
+
+	static tthread::mutex   s_PanicMutex;
+	static std::set<World*> s_PanicWorldSet;
+	
+	void panicExit();
 
 
     bool chunkFileExists( int chunkX, int chunkY, int chunkZ );
@@ -238,11 +322,15 @@ private:
     std::string m_BaseDir;
 
     mutable tthread::mutex m_Mutex;
-    bool m_StopThreads;
-
 
 
     mutable tthread::mutex m_LogMutex;
+
+
+	// --- Statistics ---
+	
+	bool m_StatisticsEnabled; // thread safe (is only set in the constructor)
+	tthread::atomic_int m_Statistics[STATISTIC_COUNT];
 
 
     // --- Scheduled Checks ---
@@ -266,11 +354,14 @@ private:
      * This list needs its own mutex,
      * because its heavily used by the chunks.
      */
-    mutable tthread::mutex m_ScheduledChecksMutex;
     std::list<ScheduledCheck> m_ScheduledChecks;
-    tthread::condition_variable m_SchedulerReevaluateCondition;
-
+    
+	mutable tthread::mutex m_ScheduledChecksMutex;
+    
+	tthread::condition_variable m_SchedulerReevaluateCondition;
     tthread::thread* m_SchedulerThread;
+
+	tthread::atomic_int m_StopSchedulerThread;
 
     static void SchedulerThreadWrapper( void* worldInstance );
     void schedulerThreadFn();
@@ -278,29 +369,13 @@ private:
 
     // --- Load/Save Jobs ---
 
-    enum JobType
-    {
-        INVALID_JOB,
-        LOAD_JOB,
-        SAVE_JOB
-    };
-
-    struct JobEntry
-    {
-        int priority;
-        JobType type;
-        Chunk* chunk;
-    };
-
-    static JobEntry InvalidJob();
-
     tthread::condition_variable m_NewJobCondition;
 
     /**
      * Tries to find a job with the given chunk id.
-     * Returns an invalid job if nothing was found.
+     * Returns the .end()-iterator if none has been found.
      */
-    JobEntry findJobByChunk( Chunk* chunk ) const;
+    std::list<JobEntry>::iterator findJobByChunk( Chunk* chunk );
 
     /**
      * Adds a job to the job queue.
@@ -313,11 +388,13 @@ private:
      */
     JobEntry getJob();
 
+    mutable tthread::mutex m_JobListMutex;
     std::list<JobEntry> m_JobList;
     int m_ActiveLoadJobs;
     int m_ActiveSaveJobs;
 
-    std::vector<tthread::thread*> m_ThreadPool;
+    std::vector<tthread::thread*> m_JobThreads;
+	tthread::atomic_int m_StopJobThreads;
     static void JobThreadWrapper(void* worldInstance);
     void jobThreadFn();
 };

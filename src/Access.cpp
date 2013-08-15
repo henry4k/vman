@@ -35,9 +35,7 @@ void Access::setVolume( const vmanVolume* volume )
 {
     m_IsInvalidVolume = true;
     for(int i = 0; i < m_Cache.size(); ++i)
-    {
         m_Cache[i]->releaseReference();
-    }
     m_Cache.clear();
 
 	if(volume != NULL)
@@ -55,10 +53,8 @@ void Access::setVolume( const vmanVolume* volume )
         m_World->getMutex()->lock();
         m_World->getVolume(&m_ChunkVolume, &m_Cache[0], m_Priority);
         for(int i = 0; i < m_Cache.size(); ++i)
-        {
             m_Cache[i]->addReference();
-        }
-        m_World->getMutex()->unlock(); // So noone can remove my cached chunks while i'm putting references on them
+        m_World->getMutex()->unlock(); // So no one can remove my cached chunks while i'm putting references on them
 	}
 }
 
@@ -122,21 +118,26 @@ void Access::unlock()
 bool InsideVolume( const vmanVolume* volume, int x, int y, int z )
 {
     return
-        x >= volume->x &&
-        x <  volume->x + volume->w &&
-        y >= volume->y &&
-        y <  volume->y + volume->h &&
-        z >= volume->z &&
-        z <  volume->z + volume->d;
+        (x >= volume->x) &&
+        (x <  volume->x + volume->w) &&
+
+        (y >= volume->y) &&
+        (y <  volume->y + volume->h) &&
+        
+        (z >= volume->z) &&
+        (z <  volume->z + volume->d);
 }
 
 const void* Access::readVoxelLayer( int x, int y, int z, int layer ) const
 {
+	m_World->incStatistic(STATISTIC_VOLUME_READ_HITS);
     return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS);
 }
 
 void* Access::readWriteVoxelLayer( int x, int y, int z, int layer ) const
 {
+	m_World->incStatistic(STATISTIC_VOLUME_READ_HITS);
+	m_World->incStatistic(STATISTIC_VOLUME_WRITE_HITS);
     return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
 }
 
@@ -150,7 +151,7 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
 	    return NULL;
 	}
 
-    m_World->log(LOG_ERROR, "readWriteVoxelLayer( %s ) in access volume (%s).\n",
+    m_World->log(LOG_DEBUG, "readWriteVoxelLayer( %s ) in access volume (%s).\n",
         CoordsToString(x,y,z).c_str(),
         VolumeToString(&m_Volume).c_str()
     );
@@ -165,9 +166,15 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
 	}
 
     const int edgeLength = m_World->getChunkEdgeLength();
-    const int chunkX = x/edgeLength;
-    const int chunkY = y/edgeLength;
-    const int chunkZ = z/edgeLength;
+    int chunkX, chunkY, chunkZ;
+    m_World->voxelToChunkCoordinates(
+        x,
+        y,
+        z,
+        &chunkX,
+        &chunkY,
+        &chunkZ
+    );
 
     // TODO: Temporary
     if(InsideVolume(&m_ChunkVolume, chunkX, chunkY, chunkZ) == false)
@@ -189,22 +196,38 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
         chunkY-m_ChunkVolume.y,
         chunkZ-m_ChunkVolume.z
     ) ];
-
+    
     // Check if mode includes write access.
-    if((mode & VMAN_WRITE_ACCESS) != 0)
+    if(mode & VMAN_WRITE_ACCESS)
         chunk->setModified();
 
     const int voxelSize = m_World->getLayer(layer)->voxelSize;
 
-    return &reinterpret_cast<char*>( chunk->getLayer(layer) )[Index3D(
-        voxelSize*edgeLength,
-        voxelSize*edgeLength,
-        voxelSize*edgeLength,
+    if(mode & VMAN_WRITE_ACCESS)
+    {
+        return &reinterpret_cast<char*>( chunk->getLayer(layer) )[Index3D(
+            voxelSize*edgeLength,
+            voxelSize*edgeLength,
+            voxelSize*edgeLength,
 
-        chunkX*edgeLength - x,
-        chunkY*edgeLength - y,
-        chunkZ*edgeLength - z
-    )];
+            x - chunkX*edgeLength,
+            y - chunkY*edgeLength,
+            z - chunkZ*edgeLength
+        )];
+    }
+    else
+    {
+        // TODO: Evil evil evil !
+        return &const_cast<char*>( reinterpret_cast<const char*>( chunk->getConstLayer(layer) ) )[Index3D(
+            voxelSize*edgeLength,
+            voxelSize*edgeLength,
+            voxelSize*edgeLength,
+
+            x - chunkX*edgeLength,
+            y - chunkY*edgeLength,
+            z - chunkZ*edgeLength
+        )];
+    }
 }
 
 

@@ -6,7 +6,10 @@ MACRO(AddTest Name)
 ENDMACRO()
 
 AddTest("test")
+AddTest("path")
 AddTest("world")
 AddTest("chunk")
 AddTest("access")
-AddTest("benchmark")
+
+ADD_EXECUTABLE("benchmark" "benchmark.cpp" "${InihSource}/ini.c")
+TARGET_LINK_LIBRARIES("benchmark" "vman")

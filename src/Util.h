@@ -2,6 +2,8 @@
 #define __VMAN_UTIL_H__
 
 #include <stdint.h>
+#include <string.h>
+#include <time.h>
 #include <tinythread.h>
 #include <string>
 
@@ -74,6 +76,11 @@ namespace vman
 
     FileType GetFileType( const char* path );
     bool MakeDirectory( const char* path );
+
+    /**
+     * Creates directory entries for all segments followed by an directory separator.
+     * So that a file at the given path could be created.
+     */
     bool MakePath( const char* path );
 
 
@@ -103,9 +110,16 @@ namespace vman
 
     // --- string ---
 
+    std::string Format( const char* format, ... );
+
     std::string CoordsToString( int x, int y, int z );
 
     std::string VolumeToString( const vmanVolume* volume );
+
+
+    // --- time ---
+
+    time_t AddSeconds( const time_t tv, int seconds );
 }
 
 #endif

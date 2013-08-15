@@ -22,6 +22,7 @@ freely, subject to the following restrictions:
 */
 
 #include <stdio.h>
+#include <sstream>
 
 #include <exception>
 #include "tinythread.h"
@@ -129,12 +130,6 @@ void condition_variable::_makeWaitTime(struct timespec* waitTime, double seconds
     }
 
     waitTime->tv_sec = tv.tv_sec + dt_sec;
-
-    printf("%f => %d.%d\n",
-        seconds,
-        (int)dt_sec,
-        (int)dt_usec
-    );
 }
 #endif
 
@@ -196,9 +191,10 @@ static thread::id _pthread_t_to_ID(const pthread_t &aHandle)
 /// Information shared between the thread wrapper and the thread object.
 class _thread_wrapper {
   public:
-    _thread_wrapper(void (*aFunction)(void *), void * aArg) :
+    _thread_wrapper(void (*aFunction)(void *), void * aArg, const char* name) :
       mFunction(aFunction),
       mArg(aArg),
+	  mName(name),
       mRefCount(2)      // Upon creation the object is referenced by two
                         // instances: the thread object and the thread wrapper
     {
@@ -219,9 +215,15 @@ class _thread_wrapper {
       return !(--mRefCount);
     }
 
+	inline const char* get_name() const
+	{
+		return mName;
+	}
+
   private:
     void (*mFunction)(void *);  // Pointer to the function to be executed
     void * mArg;                // Function argument for the thread function
+	const char* mName;          // Thread name
     atomic_int mRefCount;       // Reference count
 };
 
@@ -239,6 +241,14 @@ void * thread::wrapper_function(void * aArg)
   {
     // Call the actual client thread function
     tw->run();
+
+#if defined(_GNU_SOURCE) // __linux__
+	pthread_setname_np(pthread_self(), tw->get_name());
+#elif defined(__bsdi__)
+	pthread_set_name_np(pthread_self(), tw->get_name());
+#elif defined(__APPLE__)
+	pthread_setname_np(tw->get_name());
+#endif
   }
   catch(...)
   {
@@ -256,10 +266,10 @@ void * thread::wrapper_function(void * aArg)
   return 0;
 }
 
-thread::thread(void (*aFunction)(void *), void * aArg)
+thread::thread(void (*aFunction)(void *), void * aArg, const char* name)
 {
   // Fill out the thread startup information (passed to the thread wrapper)
-  _thread_wrapper * tw = new _thread_wrapper(aFunction, aArg);
+  _thread_wrapper * tw = new _thread_wrapper(aFunction, aArg, name);
 
   // Create the thread
 #if defined(_TTHREAD_WIN32_)
@@ -363,6 +373,22 @@ thread::id thread::get_id() const
 #endif
 }
 
+std::string thread::get_name() const
+{
+#if defined(_GNU_SOURCE) // __linux__
+	char buffer[32];
+	if(pthread_getname_np(mHandle, buffer, sizeof(buffer)) == 0)
+		return buffer;
+#elif defined(__APPLE__)
+	char buffer[32];
+	if(pthread_getname_np(mHandle, buffer, sizeof(buffer)) == 0)
+		return buffer;
+#endif
+	std::ostringstream oss;
+	oss << get_id();
+	return oss.str();
+}
+
 unsigned thread::hardware_concurrency()
 {
 #if defined(_TTHREAD_WIN32_)
@@ -392,6 +418,22 @@ thread::id this_thread::get_id()
 #elif defined(_TTHREAD_POSIX_)
   return _pthread_t_to_ID(pthread_self());
 #endif
+}
+
+std::string this_thread::get_name()
+{
+#if defined(_GNU_SOURCE) // __linux__
+	char buffer[16];
+	if(pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) == 0)
+		return buffer;
+#elif defined(__APPLE__)
+	char buffer[16];
+	if(pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) == 0)
+		return buffer;
+#endif
+	std::ostringstream oss;
+	oss << get_id();
+	return oss.str();
 }
 
 }

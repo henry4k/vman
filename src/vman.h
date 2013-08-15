@@ -46,6 +46,13 @@ typedef enum
 
 VMAN_API int vmanGetError();
 
+
+/**
+ * Call this function on abnormal or abprupt program termination.
+ */
+VMAN_API void vmanPanicExit();
+
+
 enum
 {
     VMAN_MAX_LAYER_NAME_LENGTH = 31
@@ -89,24 +96,75 @@ typedef struct
 } vmanLayer;
 
 
+// -- Statistics --
+
+typedef struct
+{
+	int chunkGetHits;
+	int chunkGetMisses;
+	
+	int chunkLoadOps;
+	int chunkSaveOps;
+	int chunkUnloadOps;
+
+	int volumeReadHits;
+	int volumeWriteHits;
+
+	int maxLoadedChunks;
+	int maxScheduledChecks;
+	int maxEnqueuedJobs;
+} vmanStatistics;
+
+
 // -- World --
 
 typedef void* vmanWorld;
+
 
 /**
  * Creates a new world object.
  * @param layers Array that describes the data layers available to each voxel.
  * @param layerCount Amount of elements stored in layers.
  * @param chunkEdgeLength Defines the volume used for the internal chunks. Dont change this later on!
- * @param baseDir Chunks are stored here. If NULL nothing is stored to disk.
- * @return NULL when something went wrong.
+ * @param baseDir Chunks are stored here. If `NULL` nothing is stored to disk.
+ * @param enableStatistics Whether statistics should be enabled.
+ * @return `NULL` when something went wrong.
  */
-VMAN_API vmanWorld vmanCreateWorld( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir );
+VMAN_API vmanWorld vmanCreateWorld( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics );
+
 
 /**
  * Deletes the given world object and all its allocated resources.
  */
 VMAN_API void vmanDeleteWorld( const vmanWorld world );
+
+
+/**
+ * Timeout after that unreferenced chunks are unloaded.
+ * Negative values disable this behaviour.
+ */
+VMAN_API void vmanSetUnusedChunkTimeout( const vmanWorld world, int seconds );
+
+
+/**
+ * Timeout after that modified chunks are saved to disk.
+ * Negative values disable this behaviour.
+ */
+VMAN_API void vmanSetModifiedChunkTimeout( const vmanWorld world, int seconds );
+
+
+/**
+ * Resets all statistics to zero.
+ */
+VMAN_API void vmanResetStatistics( const vmanWorld world );
+
+
+/**
+ * Writes the current statistics to `statisticsDestination`.
+ * @param statisticsDestination Statistics are written to this structure.
+ * @return whether the operation succeeded. May return `false` even if statistics were enabled.
+ */
+VMAN_API bool vmanGetStatistics( const vmanWorld world, vmanStatistics* statisticsDestination );
 
 
 // -- Volume --

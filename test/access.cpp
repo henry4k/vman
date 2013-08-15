@@ -30,7 +30,7 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
+    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
     Access access(&world);
 
     {

@@ -25,7 +25,7 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-    vmanWorld world = vmanCreateWorld(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
+    vmanWorld world = vmanCreateWorld(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
 
     vmanAccess access = vmanCreateAccess(world);
     vmanVolume volume =

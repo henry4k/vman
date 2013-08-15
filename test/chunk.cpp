@@ -28,7 +28,7 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
+    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
     
     {
         Chunk chunk(&world, 1,2,3);

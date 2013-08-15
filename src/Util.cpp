@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 #include "Util.h"
 
 #if defined(__WINDOWS__)
@@ -64,7 +66,7 @@ const char DirSep = '/';
 
     bool MakeDirectory( const char* path )
     {
-        return mkdir(path, 0) == 0;
+        return mkdir(path, 0777) == 0;
     }
 #endif
 
@@ -81,47 +83,92 @@ bool MakePath( const char* path_ )
         {
             path[i] = '\0';
             const FileType fileType = GetFileType(path);
-            if(fileType == FILE_TYPE_INVALID)
+            switch(GetFileType(path))
             {
-                if(MakeDirectory(path) == false)
+                case FILE_TYPE_INVALID:
+                    if(MakeDirectory(path) == false)
+                        return false;
+                    break;
+
+                case FILE_TYPE_DIRECTORY:
+                    // everything fine
+                    break;
+
+                default:
                     return false;
-            }
-            else if(fileType != FILE_TYPE_DIRECTORY)
-            {
-                return false;
             }
             path[i] = DirSep;
         }
     }
 
+    /*
     const FileType fileType = GetFileType(path);
     if(fileType == FILE_TYPE_INVALID)
         if(MakeDirectory(path) == false)
             return false;
+    */
     return true;
 }
 
 
+std::string Format( const char* format, ... )
+{
+    static const int BUFFER_SIZE = 256;
+    char buffer[BUFFER_SIZE];
+
+    va_list vl;
+    va_start(vl, format);
+    int charsWritten = vsprintf(buffer, format, vl);
+    va_end(vl);
+
+    assert(charsWritten >= 0);
+    assert(charsWritten < BUFFER_SIZE);
+    return buffer;
+}
+
 
 std::string CoordsToString( int x, int y, int z )
 {
-    char buffer[32];
-    sprintf(buffer, "%d|%d|%d", x, y, z);
-    return buffer;
+    return Format("%d|%d|%d",
+        x, y, z
+    );
 }
 
 std::string VolumeToString( const vmanVolume* volume )
 {
-    return CoordsToString(
-        volume->x,
-        volume->y,
-        volume->z
-    ) + " => " + CoordsToString(
-        volume->w,
-        volume->h,
-        volume->d
+    return Format("%s => %s (%s)",
+        CoordsToString(
+            volume->x,
+            volume->y,
+            volume->z
+        ).c_str(),
+        CoordsToString(
+            volume->x + volume->w - 1,
+            volume->y + volume->h - 1,
+            volume->z + volume->d - 1
+        ).c_str(),
+        CoordsToString(
+            volume->w,
+            volume->h,
+            volume->d
+        ).c_str()
     );
 }
 
+//tthread::mutex g_AddSecondsMutex;
+time_t AddSeconds( const time_t tv, int seconds )
+{
+	/*
+    lock_guard guard(g_AddSecondsMutex);
+
+    struct tm helper;
+    gmtime_r(&tv, &helper);
+
+    helper.tm_sec += seconds;
+
+    return mktime(&helper);
+	*/
+	return tv+seconds;
+}
 
 }
