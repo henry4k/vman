@@ -69,10 +69,10 @@ World::World( const vmanLayer* layers, int layerCount, int chunkEdgeLength, cons
     m_JobThreads.resize(workerCount);
     for(int i = 0; i < workerCount; ++i)
     {
-        m_JobThreads[i] = new tthread::thread(JobThreadWrapper, this, "VMAN Job Worker");
+        m_JobThreads[i] = new tthread::thread(JobThreadWrapper, this, Format("JobWorker %d", i).c_str());
     }
 
-    m_SchedulerThread = new tthread::thread(SchedulerThreadWrapper, this, "VMAN Scheduler");
+    m_SchedulerThread = new tthread::thread(SchedulerThreadWrapper, this, "Scheduler");
 
 	s_PanicMutex.lock();
 	s_PanicWorldSet.insert(this);
@@ -137,13 +137,10 @@ std::set<World*> World::s_PanicWorldSet;
 
 void World::PanicExit()
 {
-	printf("World::PanicExit called\n");
-
 	lock_guard guard(s_PanicMutex);
 	std::set<World*>::const_iterator i = s_PanicWorldSet.begin();
 	for(; i != s_PanicWorldSet.end(); ++i)
 	{
-		printf("world %p\n", (void*)*i);
 		(*i)->panicExit();
 	}
 	s_PanicWorldSet.clear();
@@ -151,7 +148,29 @@ void World::PanicExit()
 
 void World::panicExit()
 {
+	/*
+	lock_guard guard(m_Mutex);
+    for(; i != m_ChunkMap.end(); ++i)
+    {
+		Chunk* chunk = i->second;
+        assert(chunk != NULL);
+
+		lock_guard chunkGuard(*chunk->getMutex());
+		if(chunk->isModified())
+			chunk->saveToFile();
+    }
+	*/
+
 	saveModifiedChunks();
+	
+	m_StopJobThreads = 1;
+    m_NewJobCondition.notify_all();
+    std::vector<tthread::thread*>::iterator i = m_JobThreads.begin();
+    for(; i != m_JobThreads.end(); ++i)
+    {
+        if((*i)->joinable())
+            (*i)->join();
+	}
 }
 
 int World::getLayerCount() const
@@ -226,14 +245,21 @@ void World::log( LogLevel level, const char* format, ... ) const
 			logfile = stdout;
     }
 
-    fprintf(logfile,"[VMAN world %p from %s ", (const void*)this, tthread::this_thread::get_name().c_str());
+	const time_t now = time(NULL);
+	const struct tm* timeinfo = localtime(&now);
+	char timeBuffer[48];
+	strftime(timeBuffer, sizeof(timeBuffer), "%H:%M:%S", timeinfo);
+
+	const char* levelName = NULL;
     switch(level)
     {
-        case LOG_DEBUG:   fprintf(logfile, "DEBUG] ");   break;
-        case LOG_INFO:    fprintf(logfile, "INFO] ");    break;
-        case LOG_WARNING: fprintf(logfile, "WARNING] "); break;
-        case LOG_ERROR:   fprintf(logfile, "ERROR] ");   break;
+        case LOG_DEBUG:   levelName = "DEBUG";   break;
+        case LOG_INFO:    levelName = "INFO";    break;
+        case LOG_WARNING: levelName = "WARNING"; break;
+        case LOG_ERROR:   levelName = "ERROR";   break;
     }
+
+    fprintf(logfile,"[%s %s %s] ", timeBuffer, levelName, tthread::this_thread::get_name().c_str());
 
     va_list vl;
     va_start(vl,format);

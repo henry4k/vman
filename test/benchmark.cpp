@@ -223,20 +223,27 @@ float GetConfigFloat( const char* key, float defaultValue )
 
 // -------
 
+void SetSignals( void (*sigfn)(int) )
+{
+	signal(SIGABRT, sigfn);
+	signal(SIGFPE,  sigfn);
+	signal(SIGILL,  sigfn);
+	signal(SIGINT,  sigfn);
+	signal(SIGSEGV, sigfn);
+	signal(SIGTERM, sigfn);
+}
+
 void PanicExit( int sig )
 {
+	SetSignals(SIG_DFL);
 	vmanPanicExit();
+	exit(EXIT_FAILURE);
 }
 
 
 int main( int argc, char* argv[] )
 {
-	signal(SIGABRT, PanicExit);
-	signal(SIGFPE, PanicExit);
-	signal(SIGILL, PanicExit);
-	signal(SIGINT, PanicExit);
-	signal(SIGSEGV, PanicExit);
-	signal(SIGTERM, PanicExit);
+	SetSignals(PanicExit);
 
 	ReadConfigValues(argc, argv);
 
@@ -264,7 +271,9 @@ int main( int argc, char* argv[] )
 	int threadCount = GetConfigInt("thread.count", 1);
     for(int i = 0; i < threadCount; ++i)
     {
-        threads.push_back( new tthread::thread(ThreadFn, &config) );
+		char buffer[32];
+		sprintf(buffer, "Benchmarker %d", i);
+        threads.push_back( new tthread::thread(ThreadFn, &config, buffer) );
     }
 
     for(int i = 0; i < threads.size(); ++i)

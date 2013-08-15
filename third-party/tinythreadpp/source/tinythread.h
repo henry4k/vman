@@ -79,6 +79,9 @@ freely, subject to the following restrictions:
     #undef __UNDEF_LEAN_AND_MEAN
   #endif
 #else
+  #if defined(__linux__) && defined(_GNU_SOURCE) == false
+    #define _GNU_SOURCE
+  #endif
   #include <pthread.h>
   #include <signal.h>
   #include <sched.h>

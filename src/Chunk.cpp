@@ -95,7 +95,7 @@ ChunkId Chunk::getId() const
 
 std::string Chunk::toString() const
 {
-    return Format("%p %d|%d|%d", (void*)this, m_ChunkX, m_ChunkY, m_ChunkZ);
+    return Format("%d|%d|%d", m_ChunkX, m_ChunkY, m_ChunkZ);
 }
 
 void Chunk::initializeLayer( int index )
