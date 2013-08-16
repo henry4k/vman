@@ -11,7 +11,7 @@
 namespace vman
 {
 
-class World;
+class Volume;
 
 typedef uint64_t ChunkId;
 
@@ -23,7 +23,7 @@ public:
     static std::string ChunkCoordsToString( int chunkX, int chunkY, int chunkZ );
     static std::string ChunkIdToString( ChunkId chunkId );
 
-	Chunk( World* world, int chunkX, int chunkY, int chunkZ );
+	Chunk( Volume* volume, int chunkX, int chunkY, int chunkZ );
     ~Chunk();
 
     int getChunkX() const;
@@ -38,7 +38,7 @@ public:
 	 * Data is initialized to `0`.
 	 * Use the chunk edge length to compute the array size.
 	 * @return Data of the given layer.
-	 * @see World#getChunkEdgeLength
+	 * @see Volume#getChunkEdgeLength
 	 */
 	void* getLayer( int index );
 
@@ -122,14 +122,14 @@ public:
      */
     void clearLayers( bool silent = false );
 
-	World* m_World;
+	Volume* m_Volume;
 
     const int m_ChunkX;
     const int m_ChunkY;
     const int m_ChunkZ;
 
     /**
-     * Holds voxel arrays for all layers registered in the world.
+     * Holds voxel arrays for all layers registered in the volume.
      * A pointer is `NULL` if the layer is not used in this chunk,
      * in that case the layers default voxel value shuld be used.
      * Voxels have to be initialized with `0`!

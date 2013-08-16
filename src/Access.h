@@ -7,20 +7,20 @@
 namespace vman
 {
 
-class World;
+class Volume;
 class Chunk;
 
 /**
- * Access objects provide r/w access to the world.
- * They precache chunks as soon as a valid volume has been set.
+ * Access objects provide r/w access to the volume.
+ * They precache chunks as soon as a valid selection has been set.
  */
 class Access
 {
 public:
 	/**
-	 * Initially the volume will be invalid and all r/w operations will fail.
+	 * Initially the selection will be invalid and all r/w operations will fail.
 	 */
-	Access( World* world );
+	Access( Volume* volume );
 
 	/**
 	 * Deleting a locked access object will cause an error!
@@ -35,14 +35,14 @@ public:
 
 
 	/**
-	 * Updates the volume.
+	 * Updates the selection.
 	 * At this point the affected chunks will be precached and preloaded.
-	 * Setting the volume to NULL renders it invalid and will prevent any r/w operations.
+	 * Setting the selection to NULL renders it invalid and will prevent any r/w operations.
 	 */
-	void setVolume( const vmanVolume* volume );
+	void select( const vmanSelection* selection );
 
 	/**
-	 * Locks access to the specified volume.
+	 * Locks access to the specified selection.
 	 * May block when intersecting chunks are already locked by other access objects.
 	 * May also block while affected chunks are loaded from disk.
 	 * Multiple access objects may read simultaneously from the same chunk.
@@ -53,7 +53,7 @@ public:
 	void lock( int mode );
 
     /**
-     * Behaves like lock(), except that it returns false if the volume is already locked.
+     * Behaves like lock(), except that it returns false if the selection is already locked.
      * Returns true on success.
      * @see lock
      */
@@ -67,14 +67,14 @@ public:
 
 	/**
 	 * @return: Returns a read only pointer to the voxel data in the specified layer.
-	 * Will return NULL if the voxel lies outside the volume or
+	 * Will return NULL if the voxel lies outside the selection or
 	 * an incomplatible access mode has been selected.
 	 */
 	const void* readVoxelLayer( int x, int y, int z, int layer ) const;
 
 	/**
 	 * @return: Returns a pointer to the voxel data in the specified layer.
-	 * Will return NULL if the voxel lies outside the volume or
+	 * Will return NULL if the voxel lies outside the selection or
 	 * an incomplatible access mode has been selected.
 	 * Read operations may yield undefined values if write only is active.
 	 */
@@ -86,18 +86,18 @@ private:
 
 	void* getVoxelLayer( int x, int y, int z, int layer, int mode ) const;
 
-	World* m_World;
-    bool m_IsInvalidVolume;
+	Volume* m_Volume;
+    bool m_SelectionIsInvalid;
 	bool m_IsLocked;
     int m_AccessMode;
-	vmanVolume m_Volume;
-    vmanVolume m_ChunkVolume;
+	vmanSelection m_Selection;
+    vmanSelection m_ChunkSelection;
     int m_Priority;
 
 	/**
 	 * An 3d array that holds pointers to the selected chunks.
 	 * May be NULL, then the cache is just not used.
-	 * @see m_Volume
+	 * @see m_Selection
 	 */
     std::vector<Chunk*> m_Cache;
 };

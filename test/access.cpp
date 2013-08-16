@@ -2,7 +2,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <World.h>
+#include <Volume.h>
 #include <Chunk.h>
 #include <Access.h>
 
@@ -30,19 +30,19 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
-    Access access(&world);
+    Volume volume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
+    Access access(&volume);
 
     {
-        vmanVolume volume;
-        volume.x = -20;
-        volume.y = -20;
-        volume.z = -20;
-        volume.w = 40;
-        volume.h = 40;
-        volume.d = 40;
+        vmanSelection selection;
+        selection.x = -20;
+        selection.y = -20;
+        selection.z = -20;
+        selection.w = 40;
+        selection.h = 40;
+        selection.d = 40;
 
-        access.setVolume(&volume);
+        access.select(&selection);
     }
 
     {

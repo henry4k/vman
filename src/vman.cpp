@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "vman.h"
-#include "World.h"
+#include "Volume.h"
 #include "Access.h"
 
 /*
@@ -12,48 +12,48 @@
 
 void vmanPanicExit()
 {
-	vman::World::PanicExit();
+	vman::Volume::PanicExit();
 }
 
-vmanWorld vmanCreateWorld( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics )
+vmanVolume vmanCreateVolume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics )
 {
-    return (vmanWorld)new vman::World(layers, layerCount, chunkEdgeLength, baseDir, enableStatistics);
+    return (vmanVolume)new vman::Volume(layers, layerCount, chunkEdgeLength, baseDir, enableStatistics);
 }
 
-void vmanDeleteWorld( const vmanWorld world )
+void vmanDeleteVolume( const vmanVolume volume )
 {
-    assert(world != NULL);
-    delete (const vman::World*)world;
+    assert(volume != NULL);
+    delete (const vman::Volume*)volume;
 }
 
-void vmanSetUnusedChunkTimeout( const vmanWorld world, int seconds )
+void vmanSetUnusedChunkTimeout( const vmanVolume volume, int seconds )
 {
-    assert(world != NULL);
-    ((vman::World*)world)->setUnusedChunkTimeout(seconds);
+    assert(volume != NULL);
+    ((vman::Volume*)volume)->setUnusedChunkTimeout(seconds);
 }
 
-void vmanSetModifiedChunkTimeout( const vmanWorld world, int seconds )
+void vmanSetModifiedChunkTimeout( const vmanVolume volume, int seconds )
 {
-    assert(world != NULL);
-    ((vman::World*)world)->setModifiedChunkTimeout(seconds);
+    assert(volume != NULL);
+    ((vman::Volume*)volume)->setModifiedChunkTimeout(seconds);
 }
 
-void vmanResetStatistics( const vmanWorld world )
+void vmanResetStatistics( const vmanVolume volume )
 {
-    assert(world != NULL);
-    ((vman::World*)world)->resetStatistics();
+    assert(volume != NULL);
+    ((vman::Volume*)volume)->resetStatistics();
 }
 
-bool vmanGetStatistics( const vmanWorld world, vmanStatistics* statisticsDestination )
+bool vmanGetStatistics( const vmanVolume volume, vmanStatistics* statisticsDestination )
 {
-    assert(world != NULL);
-    return ((vman::World*)world)->getStatistics(statisticsDestination);
+    assert(volume != NULL);
+    return ((vman::Volume*)volume)->getStatistics(statisticsDestination);
 }
 
-vmanAccess vmanCreateAccess( const vmanWorld world )
+vmanAccess vmanCreateAccess( const vmanVolume volume )
 {
-    assert(world != NULL);
-    return new vman::Access((vman::World*)world);
+    assert(volume != NULL);
+    return new vman::Access((vman::Volume*)volume);
 }
 
 void vmanDeleteAccess( const vmanAccess access )
@@ -62,10 +62,10 @@ void vmanDeleteAccess( const vmanAccess access )
     delete (vman::Access*)access;
 }
 
-void vmanSetAccessVolume( vmanAccess access, const vmanVolume* volume )
+void vmanSelect( vmanAccess access, const vmanSelection* selection )
 {
     assert(access != NULL);
-    ((vman::Access*)access)->setVolume(volume);
+    ((vman::Access*)access)->select(selection);
 }
 
 void vmanLockAccess( vmanAccess access, int mode )

@@ -30,12 +30,12 @@ float Random( float min, float max )
 
 struct Configuration
 {
-    vmanWorld world;
+    vmanVolume volume;
     vmanLayer* layers;
     int layerCount;
     int iterations;
-    int maxVolumeDistance;
-    int maxVolumeSize;
+    int maxSelectionDistance;
+    int maxSelectionSize;
 	float minWait;
 	float maxWait;
 };
@@ -51,28 +51,28 @@ void ThreadFn( void* context )
 {
     const Configuration* config = (Configuration*)context;
 
-    vmanAccess access = vmanCreateAccess(config->world);
+    vmanAccess access = vmanCreateAccess(config->volume);
 
     for(int i = 0; i < config->iterations; ++i)
     {
-        vmanVolume volume =
+        vmanSelection selection =
         {
-            Random(-config->maxVolumeDistance, config->maxVolumeDistance),
-            Random(-config->maxVolumeDistance, config->maxVolumeDistance),
-            Random(-config->maxVolumeDistance, config->maxVolumeDistance),
+            Random(-config->maxSelectionDistance, config->maxSelectionDistance),
+            Random(-config->maxSelectionDistance, config->maxSelectionDistance),
+            Random(-config->maxSelectionDistance, config->maxSelectionDistance),
 
-            Random(1, config->maxVolumeSize),
-            Random(1, config->maxVolumeSize),
-            Random(1, config->maxVolumeSize)
+            Random(1, config->maxSelectionSize),
+            Random(1, config->maxSelectionSize),
+            Random(1, config->maxSelectionSize)
         };
-        vmanSetAccessVolume(access, &volume);
+        vmanSelect(access, &selection);
         vmanLockAccess(access, VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
 
         char* baseVoxel;
         baseVoxel = (char*)vmanReadWriteVoxelLayer(access,
-            Random(volume.x, volume.x + volume.w-1),
-            Random(volume.y, volume.y + volume.h-1),
-            Random(volume.z, volume.z + volume.d-1),
+            Random(selection.x, selection.x + selection.w-1),
+            Random(selection.y, selection.y + selection.h-1),
+            Random(selection.z, selection.z + selection.d-1),
             Random(0, config->layerCount-1)
         );
 
@@ -223,20 +223,27 @@ float GetConfigFloat( const char* key, float defaultValue )
 
 // -------
 
+void SetSignals( void (*sigfn)(int) )
+{
+	signal(SIGABRT, sigfn);
+	signal(SIGFPE,  sigfn);
+	signal(SIGILL,  sigfn);
+	signal(SIGINT,  sigfn);
+	signal(SIGSEGV, sigfn);
+	signal(SIGTERM, sigfn);
+}
+
 void PanicExit( int sig )
 {
+	SetSignals(SIG_DFL);
 	vmanPanicExit();
+	exit(EXIT_FAILURE);
 }
 
 
 int main( int argc, char* argv[] )
 {
-	signal(SIGABRT, PanicExit);
-	signal(SIGFPE, PanicExit);
-	signal(SIGILL, PanicExit);
-	signal(SIGINT, PanicExit);
-	signal(SIGSEGV, PanicExit);
-	signal(SIGTERM, PanicExit);
+	SetSignals(PanicExit);
 
 	ReadConfigValues(argc, argv);
 
@@ -246,25 +253,27 @@ int main( int argc, char* argv[] )
     int layerCount = GetConfigInt("layer.count", 1);
     vmanLayer* layers = CreateLayers(layerCount, layerSize);
     int chunkEdgeLength = GetConfigInt("chunk.edge-length", 8);
-    const char* worldDir = GetConfigString("world.directory", NULL);
+    const char* volumeDir = GetConfigString("volume.directory", NULL);
 
     Configuration config;
-    config.world = vmanCreateWorld(layers, layerCount, chunkEdgeLength, worldDir, true);
-	vmanSetUnusedChunkTimeout(config.world, GetConfigInt("chunk.unused-timeout", 4));
-	vmanSetModifiedChunkTimeout(config.world, GetConfigInt("chunk.modified-timeout", 3));
+    config.volume = vmanCreateVolume(layers, layerCount, chunkEdgeLength, volumeDir, true);
+	vmanSetUnusedChunkTimeout(config.volume, GetConfigInt("chunk.unused-timeout", 4));
+	vmanSetModifiedChunkTimeout(config.volume, GetConfigInt("chunk.modified-timeout", 3));
 
     config.layers = layers;
     config.layerCount = layerCount;
     config.iterations = GetConfigInt("thread.iterations", 100);
-    config.maxVolumeDistance = GetConfigInt("thread.max-volume-distance", 10);
-    config.maxVolumeSize = GetConfigInt("thread.max-volume_size", 10);
+    config.maxSelectionDistance = GetConfigInt("thread.max-selection-distance", 10);
+    config.maxSelectionSize = GetConfigInt("thread.max-selection_size", 10);
 	config.minWait = GetConfigFloat("thread.min-wait", 0);
 	config.maxWait = GetConfigFloat("thread.max-wait", 0);
 
 	int threadCount = GetConfigInt("thread.count", 1);
     for(int i = 0; i < threadCount; ++i)
     {
-        threads.push_back( new tthread::thread(ThreadFn, &config) );
+		char buffer[32];
+		sprintf(buffer, "Benchmarker %d", i);
+        threads.push_back( new tthread::thread(ThreadFn, &config, buffer) );
     }
 
     for(int i = 0; i < threads.size(); ++i)
@@ -275,22 +284,22 @@ int main( int argc, char* argv[] )
     }
     puts("## Benchmark threads stopped.");
 
-    vmanDeleteWorld(config.world);
-    puts("## World deleted.");
+    vmanDeleteVolume(config.volume);
+    puts("## Volume deleted.");
 
     DestroyLayers(layers, layerCount);
     puts("## Success!");
 
 	vmanStatistics statistics;
-	if(vmanGetStatistics(config.world, &statistics))
+	if(vmanGetStatistics(config.volume, &statistics))
 	{
 		printf("chunkGetHits = %d\n", statistics.chunkGetHits);
 		printf("chunkGetMisses = %d\n", statistics.chunkGetMisses);
 		printf("chunkLoadOps = %d\n", statistics.chunkLoadOps);
 		printf("chunkSaveOps = %d\n", statistics.chunkSaveOps);
 		printf("chunkUnloadOps = %d\n", statistics.chunkUnloadOps);
-		printf("volumeReadHits = %d\n", statistics.volumeReadHits);
-		printf("volumeWriteHits = %d\n", statistics.volumeWriteHits);
+		printf("readOps = %d\n", statistics.readOps);
+		printf("writeOps = %d\n", statistics.writeOps);
 		printf("maxLoadedChunks = %d\n", statistics.maxLoadedChunks);
 		printf("maxScheduledChecks = %d\n", statistics.maxScheduledChecks);
 		printf("maxEnqueuedJobs = %d\n", statistics.maxEnqueuedJobs);

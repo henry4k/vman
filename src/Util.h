@@ -114,7 +114,7 @@ namespace vman
 
     std::string CoordsToString( int x, int y, int z );
 
-    std::string VolumeToString( const vmanVolume* volume );
+    std::string SelectionToString( const vmanSelection* selection );
 
 
     // --- time ---
