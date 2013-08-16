@@ -107,8 +107,8 @@ typedef struct
 	int chunkSaveOps;
 	int chunkUnloadOps;
 
-	int volumeReadHits;
-	int volumeWriteHits;
+	int readOps;
+	int writeOps;
 
 	int maxLoadedChunks;
 	int maxScheduledChecks;
@@ -116,47 +116,47 @@ typedef struct
 } vmanStatistics;
 
 
-// -- World --
+// -- Volume --
 
-typedef void* vmanWorld;
+typedef void* vmanVolume;
 
 
 /**
- * Creates a new world object.
+ * Creates a new volume object.
  * @param layers Array that describes the data layers available to each voxel.
  * @param layerCount Amount of elements stored in layers.
- * @param chunkEdgeLength Defines the volume used for the internal chunks. Dont change this later on!
+ * @param chunkEdgeLength Defines the selection used for the internal chunks. Dont change this later on!
  * @param baseDir Chunks are stored here. If `NULL` nothing is stored to disk.
  * @param enableStatistics Whether statistics should be enabled.
  * @return `NULL` when something went wrong.
  */
-VMAN_API vmanWorld vmanCreateWorld( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics );
+VMAN_API vmanVolume vmanCreateVolume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics );
 
 
 /**
- * Deletes the given world object and all its allocated resources.
+ * Deletes the given volume object and all its allocated resources.
  */
-VMAN_API void vmanDeleteWorld( const vmanWorld world );
+VMAN_API void vmanDeleteVolume( const vmanVolume volume );
 
 
 /**
  * Timeout after that unreferenced chunks are unloaded.
  * Negative values disable this behaviour.
  */
-VMAN_API void vmanSetUnusedChunkTimeout( const vmanWorld world, int seconds );
+VMAN_API void vmanSetUnusedChunkTimeout( const vmanVolume volume, int seconds );
 
 
 /**
  * Timeout after that modified chunks are saved to disk.
  * Negative values disable this behaviour.
  */
-VMAN_API void vmanSetModifiedChunkTimeout( const vmanWorld world, int seconds );
+VMAN_API void vmanSetModifiedChunkTimeout( const vmanVolume volume, int seconds );
 
 
 /**
  * Resets all statistics to zero.
  */
-VMAN_API void vmanResetStatistics( const vmanWorld world );
+VMAN_API void vmanResetStatistics( const vmanVolume volume );
 
 
 /**
@@ -164,16 +164,16 @@ VMAN_API void vmanResetStatistics( const vmanWorld world );
  * @param statisticsDestination Statistics are written to this structure.
  * @return whether the operation succeeded. May return `false` even if statistics were enabled.
  */
-VMAN_API bool vmanGetStatistics( const vmanWorld world, vmanStatistics* statisticsDestination );
+VMAN_API bool vmanGetStatistics( const vmanVolume volume, vmanStatistics* statisticsDestination );
 
 
-// -- Volume --
+// -- Selection --
 
 typedef struct
 {
 	int x, y, z;
 	int w, h, d;
-} vmanVolume;
+} vmanSelection;
 
 
 // -- Access --
@@ -187,12 +187,12 @@ typedef enum
 typedef void* vmanAccess;
 
 /**
- * Creates an access object, which provides r/w access to the world.
- * Will preload chunks as soon as a valid volume is set.
- * Initially the volume will be invalid and all r/w operations will fail.
+ * Creates an access object, which provides r/w access to the volume.
+ * Will preload chunks as soon as a valid selection is set.
+ * Initially the selection will be invalid and all r/w operations will fail.
  * @return NULL when something went wrong.
  */
-VMAN_API vmanAccess vmanCreateAccess( const vmanWorld world );
+VMAN_API vmanAccess vmanCreateAccess( const vmanVolume volume );
 
 /**
  * Deleting a locked access object will cause an error!
@@ -200,14 +200,14 @@ VMAN_API vmanAccess vmanCreateAccess( const vmanWorld world );
 VMAN_API void vmanDeleteAccess( const vmanAccess access );
 
 /**
- * Updates the volume.
+ * Updates the selection.
  * At this point the affected chunks will be precached and preloaded.
- * Setting the volume to NULL renders it invalid and will prevent any r/w operations.
+ * Setting the selection to NULL renders it invalid and will prevent any r/w operations.
  */
-VMAN_API void vmanSetAccessVolume( vmanAccess access, const vmanVolume* volume );
+VMAN_API void vmanSelect( vmanAccess access, const vmanSelection* selection );
 
 /**
- * Locks access to the specified volume.
+ * Locks access to the specified selection.
  * May block when intersecting chunks are already locked by other access objects.
  * May also block while affected chunks are loaded from disk.
  * Multiple access objects may read simultaneously from the same chunk.
@@ -218,7 +218,7 @@ VMAN_API void vmanLockAccess( vmanAccess access, int mode );
 
 
 /**
- * Behaves like vmanLockAccess, except that it returns 0 if the volume is already locked.
+ * Behaves like vmanLockAccess, except that it returns 0 if the selection is already locked.
  * Returns a positive value on success.
  * @see vmanLockAccess
  */
@@ -232,14 +232,14 @@ VMAN_API void vmanUnlockAccess( vmanAccess access );
 
 /**
  * @return A read only pointer to the voxel data in the specified layer.
- * Will return NULL if the voxel lies outside the volume or
+ * Will return NULL if the voxel lies outside the selection or
  * an incomplatible access mode has been selected.
  */
 VMAN_API const void* vmanReadVoxelLayer( const vmanAccess access, int x, int y, int z, int layer );
 
 /**
  * @return A pointer to the voxel data in the specified layer.
- * Will return NULL if the voxel lies outside the volume or
+ * Will return NULL if the voxel lies outside the selection or
  * an incomplatible access mode has been selected.
  * Read operations may yield undefined values if write only is active.
  */

@@ -1,6 +1,6 @@
 #include <string.h>
 #include <assert.h>
-#include <World.h>
+#include <Volume.h>
 
 using namespace vman;
 
@@ -34,19 +34,19 @@ void TestLayersForEquallity( const vmanLayer* a, const vmanLayer* b )
 
 int main()
 {
-    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
+    Volume volume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
 
-    assert(world.getLayerCount() == LAYER_COUNT);
-    assert(world.getMaxLayerVoxelSize() == 1);
-    assert(world.getChunkEdgeLength() == CHUNK_EDGE_LENGTH);
-    assert(world.getVoxelsPerChunk() == CHUNK_EDGE_LENGTH*CHUNK_EDGE_LENGTH*CHUNK_EDGE_LENGTH);
+    assert(volume.getLayerCount() == LAYER_COUNT);
+    assert(volume.getMaxLayerVoxelSize() == 1);
+    assert(volume.getChunkEdgeLength() == CHUNK_EDGE_LENGTH);
+    assert(volume.getVoxelsPerChunk() == CHUNK_EDGE_LENGTH*CHUNK_EDGE_LENGTH*CHUNK_EDGE_LENGTH);
     for(int i = 0; i < LAYER_COUNT; ++i)
     {
-        TestLayersForEquallity(world.getLayer(i), &layers[i]);
-        assert(world.getLayerIndexByName(layers[i].name) == i);
+        TestLayersForEquallity(volume.getLayer(i), &layers[i]);
+        assert(volume.getLayerIndexByName(layers[i].name) == i);
     }
-    assert(world.getLayerIndexByName("nonexistent") == -1);
-    assert(strcmp(world.getBaseDir(), ".") == 0);
+    assert(volume.getLayerIndexByName("nonexistent") == -1);
+    assert(strcmp(volume.getBaseDir(), ".") == 0);
 
     return 0;
 }

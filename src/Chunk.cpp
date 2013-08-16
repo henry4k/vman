@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "Util.h"
-#include "World.h"
+#include "Volume.h"
 #include "Chunk.h"
 
 
@@ -55,19 +55,19 @@ std::string Chunk::ChunkIdToString( ChunkId chunkId )
     return CoordsToString(x,y,z);
 }
 
-Chunk::Chunk( World* world, int chunkX, int chunkY, int chunkZ ) :
-	m_World(world),
+Chunk::Chunk( Volume* volume, int chunkX, int chunkY, int chunkZ ) :
+	m_Volume(volume),
     m_ChunkX(chunkX),
     m_ChunkY(chunkY),
     m_ChunkZ(chunkZ),
-	m_Layers(world->getLayerCount(), NULL), // n layers initialized with NULL
+	m_Layers(volume->getLayerCount(), NULL), // n layers initialized with NULL
     m_Modified(false)
 {
 }
 
 Chunk::~Chunk()
 {
-	if(m_World->getBaseDir() != NULL)
+	if(m_Volume->getBaseDir() != NULL)
 		assert(m_Modified == false);
     assert(m_References == 0);
     clearLayers(true);
@@ -95,15 +95,15 @@ ChunkId Chunk::getId() const
 
 std::string Chunk::toString() const
 {
-    return Format("%p %d|%d|%d", (void*)this, m_ChunkX, m_ChunkY, m_ChunkZ);
+    return Format("%d|%d|%d", m_ChunkX, m_ChunkY, m_ChunkZ);
 }
 
 void Chunk::initializeLayer( int index )
 {
-    const vmanLayer* layer = m_World->getLayer(index);
+    const vmanLayer* layer = m_Volume->getLayer(index);
 	assert(layer != NULL);
 
-    const int bytes = m_World->getVoxelsPerChunk()*layer->voxelSize;
+    const int bytes = m_Volume->getVoxelsPerChunk()*layer->voxelSize;
 
     assert(m_Layers[index] == NULL);
 	m_Layers[index] = new char[bytes];
@@ -186,24 +186,24 @@ static const int ChunkFileVersion = 1;
 
 bool Chunk::loadFromFile()
 {
-	m_World->incStatistic(STATISTIC_CHUNK_LOAD_OPS);
+	m_Volume->incStatistic(STATISTIC_CHUNK_LOAD_OPS);
 
-	m_World->log(LOG_DEBUG, "Loading chunk %s from file ..\n", toString().c_str());
+	m_Volume->log(LOG_DEBUG, "Loading chunk %s from file ..\n", toString().c_str());
 
-    if(m_World->getBaseDir() == NULL)
+    if(m_Volume->getBaseDir() == NULL)
     {
         assert(!"Probably redundant.");
         return false;
     }
 
-    const int voxelsPerChunk = m_World->getVoxelsPerChunk();
+    const int voxelsPerChunk = m_Volume->getVoxelsPerChunk();
 
-    std::string fileName = m_World->getChunkFileName(m_ChunkX, m_ChunkY, m_ChunkZ);
+    std::string fileName = m_Volume->getChunkFileName(m_ChunkX, m_ChunkY, m_ChunkZ);
 
     FILE* f = fopen(fileName.c_str(), "rb");
     if(f == NULL)
     {
-        m_World->log(LOG_DEBUG, "%s: File does not exist.\n", fileName.c_str());
+        m_Volume->log(LOG_DEBUG, "%s: File does not exist.\n", fileName.c_str());
         return false;
     }
 
@@ -217,9 +217,9 @@ bool Chunk::loadFromFile()
         header.edgeLength = LittleEndian(header.edgeLength);
         header.layerCount = LittleEndian(header.layerCount);
 
-        m_World->log(LOG_DEBUG, "version: %d\n", header.version);
-        m_World->log(LOG_DEBUG, "edgeLength: %d\n", header.edgeLength);
-        m_World->log(LOG_DEBUG, "layerCount: %d\n", header.layerCount);
+        m_Volume->log(LOG_DEBUG, "version: %d\n", header.version);
+        m_Volume->log(LOG_DEBUG, "edgeLength: %d\n", header.edgeLength);
+        m_Volume->log(LOG_DEBUG, "layerCount: %d\n", header.layerCount);
 
         if(header.version != ChunkFileVersion)
             throw "Incorrect file version.";
@@ -236,22 +236,22 @@ bool Chunk::loadFromFile()
             layerInfo->revision = LittleEndian(layerInfo->revision);
             layerInfo->fileOffset = LittleEndian(layerInfo->fileOffset);
 
-            m_World->log(LOG_DEBUG, "[layer %d] name: '%s'\n", i, layerInfo->name);
-            m_World->log(LOG_DEBUG, "[layer %d] voxelSize: %d\n", i, layerInfo->voxelSize);
-            m_World->log(LOG_DEBUG, "[layer %d] revision: %d\n", i, layerInfo->revision);
-            m_World->log(LOG_DEBUG, "[layer %d] fileOffset: %d\n", i, layerInfo->fileOffset);
+            m_Volume->log(LOG_DEBUG, "[layer %d] name: '%s'\n", i, layerInfo->name);
+            m_Volume->log(LOG_DEBUG, "[layer %d] voxelSize: %d\n", i, layerInfo->voxelSize);
+            m_Volume->log(LOG_DEBUG, "[layer %d] revision: %d\n", i, layerInfo->revision);
+            m_Volume->log(LOG_DEBUG, "[layer %d] fileOffset: %d\n", i, layerInfo->fileOffset);
 
-            if(m_World->getLayerIndexByName(layerInfo->name) == -1)
+            if(m_Volume->getLayerIndexByName(layerInfo->name) == -1)
             {
-                m_World->log(LOG_INFO, "%s: Ignoring chunk layer '%s'.\n", fileName.c_str(), layerInfo->name);
+                m_Volume->log(LOG_INFO, "%s: Ignoring chunk layer '%s'.\n", fileName.c_str(), layerInfo->name);
             }
         }
 
         // -- Copy used layers --
-        std::vector<char> buffer(voxelsPerChunk * m_World->getMaxLayerVoxelSize());
+        std::vector<char> buffer(voxelsPerChunk * m_Volume->getMaxLayerVoxelSize());
         for(int i = 0; i < m_Layers.size(); ++i)
         {
-            const vmanLayer* layer = m_World->getLayer(i);
+            const vmanLayer* layer = m_Volume->getLayer(i);
             const ChunkFileLayerInfo* layerInfo = FindChunkLayerByName(layerInfos, layer->name);
             if(layerInfo)
             {
@@ -260,7 +260,7 @@ bool Chunk::loadFromFile()
                     (layer->revision != layerInfo->revision)
                 )
                 {
-                    m_World->log(LOG_ERROR,"%s: Chunk layer '%s' differs, ignoring it.\n", fileName.c_str(), layer->name);
+                    m_Volume->log(LOG_ERROR,"%s: Chunk layer '%s' differs, ignoring it.\n", fileName.c_str(), layer->name);
                     // TODO: Maybe let the application try to import/convert the layer.
                     continue;
                 }
@@ -276,7 +276,7 @@ bool Chunk::loadFromFile()
     }
     catch(const std::string e)
     {
-        m_World->log(LOG_ERROR, "%s: %s\n", fileName.c_str(), e.c_str());
+        m_Volume->log(LOG_ERROR, "%s: %s\n", fileName.c_str(), e.c_str());
         fclose(f);
         clearLayers();
 		assert(false);
@@ -289,11 +289,11 @@ bool Chunk::loadFromFile()
 
 bool Chunk::saveToFile()
 {
-	m_World->incStatistic(STATISTIC_CHUNK_SAVE_OPS);
+	m_Volume->incStatistic(STATISTIC_CHUNK_SAVE_OPS);
 
-	m_World->log(LOG_DEBUG, "Saving chunk %s to file ..\n", toString().c_str());
+	m_Volume->log(LOG_DEBUG, "Saving chunk %s to file ..\n", toString().c_str());
 
-    if(m_World->getBaseDir() == NULL)
+    if(m_Volume->getBaseDir() == NULL)
     {
         assert(!"Probably redundant.");
         return false;
@@ -301,23 +301,23 @@ bool Chunk::saveToFile()
 
     assert(m_Layers.size() > 0);
 
-    const int voxelsPerChunk = m_World->getVoxelsPerChunk();
+    const int voxelsPerChunk = m_Volume->getVoxelsPerChunk();
 
-    std::string fileName = m_World->getChunkFileName(m_ChunkX, m_ChunkY, m_ChunkZ);
+    std::string fileName = m_Volume->getChunkFileName(m_ChunkX, m_ChunkY, m_ChunkZ);
 
     MakePath(fileName.c_str());
 
     FILE* f = fopen(fileName.c_str(), "wb"); // TODO: Check
     if(f == NULL)
     {
-        m_World->log(LOG_ERROR, "%s: Can't open file for writing.\n", fileName.c_str());
+        m_Volume->log(LOG_ERROR, "%s: Can't open file for writing.\n", fileName.c_str());
         return false;
     }
 
     // -- Write header ---
     ChunkFileHeader header;
     header.version = LittleEndian( ChunkFileVersion );
-    header.edgeLength = LittleEndian( m_World->getChunkEdgeLength() );
+    header.edgeLength = LittleEndian( m_Volume->getChunkEdgeLength() );
     int usedLayers = 0;
     for(int i = 0; i < m_Layers.size(); ++i)
         if(m_Layers[i] != NULL)
@@ -334,7 +334,7 @@ bool Chunk::saveToFile()
         if(m_Layers[i] != NULL)
         {
             ChunkFileLayerInfo layerInfo;
-            const vmanLayer* layer = m_World->getLayer(i);
+            const vmanLayer* layer = m_Volume->getLayer(i);
 
             memset(layerInfo.name, 0, sizeof(layerInfo.name));
             strncpy(layerInfo.name, layer->name, sizeof(layerInfo.name)-1);
@@ -351,12 +351,12 @@ bool Chunk::saveToFile()
     }
 
     // -- Write actual layers --
-    std::vector<char> buffer(voxelsPerChunk * m_World->getMaxLayerVoxelSize()); // TODO: This buffer could be thread local ...
+    std::vector<char> buffer(voxelsPerChunk * m_Volume->getMaxLayerVoxelSize()); // TODO: This buffer could be thread local ...
     for(int i = 0; i < m_Layers.size(); ++i)
     {
         if(m_Layers[i] != NULL)
         {
-            const vmanLayer* layer = m_World->getLayer(i);
+            const vmanLayer* layer = m_Volume->getLayer(i);
             layer->serializeFn(m_Layers[i], &buffer[0], voxelsPerChunk);
             fwrite(&buffer[0], voxelsPerChunk*layer->voxelSize, 1, f); // TODO: Check
         }
@@ -371,7 +371,7 @@ bool Chunk::saveToFile()
 void Chunk::addReference()
 {
     m_References++;
-    //m_World->log(LOG_DEBUG, "%p references++ = %d\n", this, (int)m_References);
+    //m_Volume->log(LOG_DEBUG, "%p references++ = %d\n", this, (int)m_References);
 }
 
 void Chunk::releaseReference()
@@ -379,9 +379,9 @@ void Chunk::releaseReference()
     assert(m_References > 0);
     if(--m_References == 0)
     {
-        m_World->scheduleCheck(World::CHECK_CAUSE_UNUSED, this);
+        m_Volume->scheduleCheck(Volume::CHECK_CAUSE_UNUSED, this);
     }
-    //m_World->log(LOG_DEBUG, "%p references-- = %d\n", this, (int)m_References);
+    //m_Volume->log(LOG_DEBUG, "%p references-- = %d\n", this, (int)m_References);
 }
 
 bool Chunk::isUnused() const
@@ -405,7 +405,7 @@ void Chunk::setModified()
     {
         m_Modified = true;
         m_ModificationTime = time(NULL);
-        m_World->scheduleCheck(World::CHECK_CAUSE_MODIFIED, this);
+        m_Volume->scheduleCheck(Volume::CHECK_CAUSE_MODIFIED, this);
     }
 }
 

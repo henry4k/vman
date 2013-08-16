@@ -25,15 +25,15 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-    vmanWorld world = vmanCreateWorld(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
+    vmanVolume volume = vmanCreateVolume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
 
-    vmanAccess access = vmanCreateAccess(world);
-    vmanVolume volume =
+    vmanAccess access = vmanCreateAccess(volume);
+    vmanSelection selection =
     {
         0,0,0,
         4,4,4
     }; // 4*4*4 cube
-    vmanSetAccessVolume(access, &volume);
+    vmanSelect(access, &selection);
     vmanLockAccess(access, VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
     
     int32_t* baseVoxel;
@@ -41,15 +41,15 @@ int main()
     *baseVoxel = 4000;
     baseVoxel = (int32_t*)vmanReadWriteVoxelLayer(access, 0,0,0, BASE_LAYER);
     printf("Voxel at %d/%d/%d is %d\n",
-        volume.x,
-        volume.y,
-        volume.z,
+        selection.x,
+        selection.y,
+        selection.z,
         *baseVoxel
     );
 
     vmanUnlockAccess(access);
     vmanDeleteAccess(access);
     
-    vmanDeleteWorld(world);
+    vmanDeleteVolume(volume);
     return 0;
 }

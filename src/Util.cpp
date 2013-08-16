@@ -134,23 +134,23 @@ std::string CoordsToString( int x, int y, int z )
     );
 }
 
-std::string VolumeToString( const vmanVolume* volume )
+std::string SelectionToString( const vmanSelection* selection )
 {
     return Format("%s => %s (%s)",
         CoordsToString(
-            volume->x,
-            volume->y,
-            volume->z
+            selection->x,
+            selection->y,
+            selection->z
         ).c_str(),
         CoordsToString(
-            volume->x + volume->w - 1,
-            volume->y + volume->h - 1,
-            volume->z + volume->d - 1
+            selection->x + selection->w - 1,
+            selection->y + selection->h - 1,
+            selection->z + selection->d - 1
         ).c_str(),
         CoordsToString(
-            volume->w,
-            volume->h,
-            volume->d
+            selection->w,
+            selection->h,
+            selection->d
         ).c_str()
     );
 }

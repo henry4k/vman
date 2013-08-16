@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <World.h>
+#include <Volume.h>
 #include <Chunk.h>
 
 using namespace vman;
@@ -28,10 +28,10 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-    World world(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
+    Volume volume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
     
     {
-        Chunk chunk(&world, 1,2,3);
+        Chunk chunk(&volume, 1,2,3);
         char* material = (char*)chunk.getLayer(0);
         char* pressure = (char*)chunk.getLayer(1);
         material[0] = 42;
@@ -41,7 +41,7 @@ int main()
     }
     
     {
-        Chunk chunk(&world, 1,2,3);
+        Chunk chunk(&volume, 1,2,3);
         bool success = chunk.loadFromFile();
         assert(success);
         const char* material = (const char*)chunk.getConstLayer(0);
@@ -51,7 +51,7 @@ int main()
     }
 
     {
-        Chunk chunk(&world, 9,9,9);
+        Chunk chunk(&volume, 9,9,9);
         bool success = chunk.loadFromFile();
         assert(success == false);
     }
