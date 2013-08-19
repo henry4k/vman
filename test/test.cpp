@@ -25,7 +25,13 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-    vmanVolume volume = vmanCreateVolume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
+	vmanVolumeParameters volumeParams;
+	vmanInitVolumeParameters(&volumeParams);
+	volumeParams.layers = layers;
+	volumeParams.layerCount = LAYER_COUNT;
+	volumeParams.chunkEdgeLength = CHUNK_EDGE_LENGTH;
+	volumeParams.baseDir = ".";
+    vmanVolume volume = vmanCreateVolume(&volumeParams);
 
     vmanAccess access = vmanCreateAccess(volume);
     vmanSelection selection =

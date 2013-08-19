@@ -7,7 +7,7 @@ ENDMACRO()
 
 AddTest("test")
 AddTest("path")
-AddTest("world")
+AddTest("volume")
 AddTest("chunk")
 AddTest("access")
 

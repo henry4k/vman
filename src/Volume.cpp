@@ -15,15 +15,15 @@
 namespace vman
 {
 
-Volume::Volume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics ) :
-	m_Layers(&layers[0], &layers[layerCount]),
+Volume::Volume( const vmanVolumeParameters* p ) :
+	m_Layers(&p->layers[0], &p->layers[p->layerCount]),
     m_MaxLayerVoxelSize(0),
-	m_ChunkEdgeLength(chunkEdgeLength),
+	m_ChunkEdgeLength(p->chunkEdgeLength),
 	m_ChunkMap(),
     m_BaseDir(), // Just to make it clear.
     m_Mutex(),
     m_LogMutex(),
-	m_StatisticsEnabled(enableStatistics),
+	m_StatisticsEnabled(p->enableStatistics),
 
     m_UnusedChunkTimeout(4),
     m_ModifiedChunkTimeout(3),
@@ -41,8 +41,8 @@ Volume::Volume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, co
     m_JobThreads(),
 	m_StopJobThreads(0)
 {
-    if(baseDir != NULL)
-        m_BaseDir = baseDir;
+    if(p->baseDir != NULL)
+        m_BaseDir = p->baseDir;
 
     for(int i = 0; i < m_Layers.size(); ++i)
     {

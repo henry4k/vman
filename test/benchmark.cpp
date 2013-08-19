@@ -372,13 +372,15 @@ int main( int argc, char* argv[] )
     const std::string volumeDir = GetConfigString("volume.directory", "");
 
     Configuration config;
-    config.volume = vmanCreateVolume(
-		layers,
-		layerCount,
-		chunkEdgeLength,
-		volumeDir.empty() ? NULL : volumeDir.c_str(),
-		true
-	);
+
+	vmanVolumeParameters volumeParams;
+	vmanInitVolumeParameters(&volumeParams);
+	volumeParams.layers = layers;
+	volumeParams.layerCount = layerCount;
+	volumeParams.chunkEdgeLength = chunkEdgeLength;
+	volumeParams.baseDir = volumeDir.empty() ? NULL : volumeDir.c_str();
+	volumeParams.enableStatistics = true;
+    config.volume = vmanCreateVolume(&volumeParams);
 
 	vmanSetUnusedChunkTimeout(config.volume, GetConfigInt("chunk.unused-timeout", 4));
 	vmanSetModifiedChunkTimeout(config.volume, GetConfigInt("chunk.modified-timeout", 3));

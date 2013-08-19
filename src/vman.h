@@ -118,19 +118,55 @@ typedef struct
 
 // -- Volume --
 
+typedef struct
+{
+	/**
+	 * Array that describes the data layers available to each voxel.
+	 */
+	const vmanLayer* layers;
+
+	/**
+	 * Amount of elements stored in `layers`.
+	 */
+	int layerCount;
+
+	/**
+	 * Defines the selection used for the internal chunks.
+	 * Don't change this later on!
+	 */
+	int chunkEdgeLength;
+
+	/**
+	 * Chunks are stored here.
+	 * May be `NULL`, then nothing is saved to disk.
+	 */
+	const char* baseDir;
+
+	/**
+	 * Whether statistics should be enabled.
+	 */
+	bool enableStatistics;
+
+
+} vmanVolumeParameters;
+
+
+/**
+ * Initializes a volume parameter structure.
+ */
+VMAN_API void vmanInitVolumeParameters( vmanVolumeParameters* parameters );
+
+
+
 typedef void* vmanVolume;
 
 
 /**
  * Creates a new volume object.
- * @param layers Array that describes the data layers available to each voxel.
- * @param layerCount Amount of elements stored in layers.
- * @param chunkEdgeLength Defines the selection used for the internal chunks. Dont change this later on!
- * @param baseDir Chunks are stored here. If `NULL` nothing is stored to disk.
- * @param enableStatistics Whether statistics should be enabled.
+ * @param parameters Parameter structure. Should be initialized using vmanInitVolumeParameters before.
  * @return `NULL` when something went wrong.
  */
-VMAN_API vmanVolume vmanCreateVolume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics );
+VMAN_API vmanVolume vmanCreateVolume( const vmanVolumeParameters* parameters );
 
 
 /**
