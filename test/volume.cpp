@@ -34,7 +34,13 @@ void TestLayersForEquallity( const vmanLayer* a, const vmanLayer* b )
 
 int main()
 {
-    Volume volume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".", false);
+	vmanVolumeParameters volumeParams;
+	vmanInitVolumeParameters(&volumeParams);
+	volumeParams.layers = layers;
+	volumeParams.layerCount = LAYER_COUNT;
+	volumeParams.chunkEdgeLength = CHUNK_EDGE_LENGTH;
+	volumeParams.baseDir = ".";
+    Volume volume(&volumeParams);
 
     assert(volume.getLayerCount() == LAYER_COUNT);
     assert(volume.getMaxLayerVoxelSize() == 1);

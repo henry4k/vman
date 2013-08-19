@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include "vman.h"
 #include "Volume.h"
@@ -15,9 +16,14 @@ void vmanPanicExit()
 	vman::Volume::PanicExit();
 }
 
-vmanVolume vmanCreateVolume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enableStatistics )
+void vmanInitVolumeParameters( vmanVolumeParameters* parameters )
 {
-    return (vmanVolume)new vman::Volume(layers, layerCount, chunkEdgeLength, baseDir, enableStatistics);
+	memset(parameters, 0, sizeof(vmanVolumeParameters));
+}
+
+vmanVolume vmanCreateVolume( const vmanVolumeParameters* parameters )
+{
+    return (vmanVolume)new vman::Volume(parameters);
 }
 
 void vmanDeleteVolume( const vmanVolume volume )

@@ -53,13 +53,9 @@ class Volume
 {
 public:
 	/**
-	 * @param layers Pointer to an array of layers.
-	 * @param layerCount The arrays length.
-	 * @param chunkEdgeLength Internal chunk edge length.
-     * @param baseDir May be `NULL`, then nothing is stored on disk.
-     * @param enableStatistics Whether statistics should be enabled.
+	 * @see vmanVolumeParameters
 	 */
-	Volume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir, bool enabledStatistics );
+	Volume( const vmanVolumeParameters* parameters );
 	~Volume();
 
 
