@@ -20,23 +20,23 @@ union ChunkIdHelper
 
 ChunkId Chunk::GenerateChunkId( int chunkX, int chunkY, int chunkZ )
 {
-	// Size has to match, since there must be no undefined space in the id.
-	assert(sizeof(int16_t)*4 == sizeof(ChunkId));
+    // Size has to match, since there must be no undefined space in the id.
+    assert(sizeof(int16_t)*4 == sizeof(ChunkId));
 
     ChunkIdHelper helper;
 
-	helper.pos.x = chunkX;
-	helper.pos.y = chunkY;
-	helper.pos.z = chunkZ;
-	helper.pos.w = 0;
+    helper.pos.x = chunkX;
+    helper.pos.y = chunkY;
+    helper.pos.z = chunkZ;
+    helper.pos.w = 0;
 
-	return helper.id;
+    return helper.id;
 }
 
 void Chunk::UnpackChunkId( ChunkId chunkId, int* outX, int* outY, int* outZ )
 {
-	assert(sizeof(int16_t)*4 == sizeof(ChunkId));
-	// Size has to match, since there must be no undefined space in the id.
+    assert(sizeof(int16_t)*4 == sizeof(ChunkId));
+    // Size has to match, since there must be no undefined space in the id.
 
     ChunkIdHelper helper;
 
@@ -56,19 +56,19 @@ std::string Chunk::ChunkIdToString( ChunkId chunkId )
 }
 
 Chunk::Chunk( Volume* volume, int chunkX, int chunkY, int chunkZ ) :
-	m_Volume(volume),
+    m_Volume(volume),
     m_ChunkX(chunkX),
     m_ChunkY(chunkY),
     m_ChunkZ(chunkZ),
-	m_Layers(volume->getLayerCount(), NULL), // n layers initialized with NULL
+    m_Layers(volume->getLayerCount(), NULL), // n layers initialized with NULL
     m_Modified(false)
 {
 }
 
 Chunk::~Chunk()
 {
-	if(m_Volume->getBaseDir() != NULL)
-		assert(m_Modified == false);
+    if(m_Volume->getBaseDir() != NULL)
+        assert(m_Modified == false);
     assert(m_References == 0);
     clearLayers(true);
 }
@@ -101,13 +101,13 @@ std::string Chunk::toString() const
 void Chunk::initializeLayer( int index )
 {
     const vmanLayer* layer = m_Volume->getLayer(index);
-	assert(layer != NULL);
+    assert(layer != NULL);
 
     const int bytes = m_Volume->getVoxelsPerChunk()*layer->voxelSize;
 
     assert(m_Layers[index] == NULL);
-	m_Layers[index] = new char[bytes];
-	memset(m_Layers[index], 0, bytes);
+    m_Layers[index] = new char[bytes];
+    memset(m_Layers[index], 0, bytes);
 
     setModified();
 }
@@ -120,27 +120,27 @@ void Chunk::clearLayers( bool silent )
         {
             delete[] m_Layers[i];
             m_Layers[i] = NULL;
-			if(!silent)
-				setModified();
+            if(!silent)
+                setModified();
         }
     }
 }
 
 void* Chunk::getLayer( int index )
 {
-	if((index < 0) || (index >= m_Layers.size()))
-		return NULL;
-	if(m_Layers[index] == NULL)
-		initializeLayer(index);
+    if((index < 0) || (index >= m_Layers.size()))
+        return NULL;
+    if(m_Layers[index] == NULL)
+        initializeLayer(index);
     setModified();
-	return m_Layers[index];
+    return m_Layers[index];
 }
 
 const void* Chunk::getConstLayer( int index ) const
 {
-	if((index < 0) || (index >= m_Layers.size()))
-		return NULL;
-	return m_Layers[index];
+    if((index < 0) || (index >= m_Layers.size()))
+        return NULL;
+    return m_Layers[index];
 }
 
 /*
@@ -186,9 +186,9 @@ static const int ChunkFileVersion = 1;
 
 bool Chunk::loadFromFile()
 {
-	m_Volume->incStatistic(STATISTIC_CHUNK_LOAD_OPS);
+    m_Volume->incStatistic(STATISTIC_CHUNK_LOAD_OPS);
 
-	m_Volume->log(LOG_DEBUG, "Loading chunk %s from file ..\n", toString().c_str());
+    m_Volume->log(VMAN_LOG_DEBUG, "Loading chunk %s from file ..\n", toString().c_str());
 
     if(m_Volume->getBaseDir() == NULL)
     {
@@ -203,7 +203,7 @@ bool Chunk::loadFromFile()
     FILE* f = fopen(fileName.c_str(), "rb");
     if(f == NULL)
     {
-        m_Volume->log(LOG_DEBUG, "%s: File does not exist.\n", fileName.c_str());
+        m_Volume->log(VMAN_LOG_DEBUG, "%s: File does not exist.\n", fileName.c_str());
         return false;
     }
 
@@ -217,9 +217,9 @@ bool Chunk::loadFromFile()
         header.edgeLength = LittleEndian(header.edgeLength);
         header.layerCount = LittleEndian(header.layerCount);
 
-        m_Volume->log(LOG_DEBUG, "version: %d\n", header.version);
-        m_Volume->log(LOG_DEBUG, "edgeLength: %d\n", header.edgeLength);
-        m_Volume->log(LOG_DEBUG, "layerCount: %d\n", header.layerCount);
+        m_Volume->log(VMAN_LOG_DEBUG, "version: %d\n", header.version);
+        m_Volume->log(VMAN_LOG_DEBUG, "edgeLength: %d\n", header.edgeLength);
+        m_Volume->log(VMAN_LOG_DEBUG, "layerCount: %d\n", header.layerCount);
 
         if(header.version != ChunkFileVersion)
             throw "Incorrect file version.";
@@ -236,14 +236,14 @@ bool Chunk::loadFromFile()
             layerInfo->revision = LittleEndian(layerInfo->revision);
             layerInfo->fileOffset = LittleEndian(layerInfo->fileOffset);
 
-            m_Volume->log(LOG_DEBUG, "[layer %d] name: '%s'\n", i, layerInfo->name);
-            m_Volume->log(LOG_DEBUG, "[layer %d] voxelSize: %d\n", i, layerInfo->voxelSize);
-            m_Volume->log(LOG_DEBUG, "[layer %d] revision: %d\n", i, layerInfo->revision);
-            m_Volume->log(LOG_DEBUG, "[layer %d] fileOffset: %d\n", i, layerInfo->fileOffset);
+            m_Volume->log(VMAN_LOG_DEBUG, "[layer %d] name: '%s'\n", i, layerInfo->name);
+            m_Volume->log(VMAN_LOG_DEBUG, "[layer %d] voxelSize: %d\n", i, layerInfo->voxelSize);
+            m_Volume->log(VMAN_LOG_DEBUG, "[layer %d] revision: %d\n", i, layerInfo->revision);
+            m_Volume->log(VMAN_LOG_DEBUG, "[layer %d] fileOffset: %d\n", i, layerInfo->fileOffset);
 
             if(m_Volume->getLayerIndexByName(layerInfo->name) == -1)
             {
-                m_Volume->log(LOG_INFO, "%s: Ignoring chunk layer '%s'.\n", fileName.c_str(), layerInfo->name);
+                m_Volume->log(VMAN_LOG_INFO, "%s: Ignoring chunk layer '%s'.\n", fileName.c_str(), layerInfo->name);
             }
         }
 
@@ -260,7 +260,7 @@ bool Chunk::loadFromFile()
                     (layer->revision != layerInfo->revision)
                 )
                 {
-                    m_Volume->log(LOG_ERROR,"%s: Chunk layer '%s' differs, ignoring it.\n", fileName.c_str(), layer->name);
+                    m_Volume->log(VMAN_LOG_ERROR,"%s: Chunk layer '%s' differs, ignoring it.\n", fileName.c_str(), layer->name);
                     // TODO: Maybe let the application try to import/convert the layer.
                     continue;
                 }
@@ -276,10 +276,10 @@ bool Chunk::loadFromFile()
     }
     catch(const std::string e)
     {
-        m_Volume->log(LOG_ERROR, "%s: %s\n", fileName.c_str(), e.c_str());
+        m_Volume->log(VMAN_LOG_ERROR, "%s: %s\n", fileName.c_str(), e.c_str());
         fclose(f);
         clearLayers();
-		assert(false);
+        assert(false);
         return false;
     }
 
@@ -289,9 +289,9 @@ bool Chunk::loadFromFile()
 
 bool Chunk::saveToFile()
 {
-	m_Volume->incStatistic(STATISTIC_CHUNK_SAVE_OPS);
+    m_Volume->incStatistic(STATISTIC_CHUNK_SAVE_OPS);
 
-	m_Volume->log(LOG_DEBUG, "Saving chunk %s to file ..\n", toString().c_str());
+    m_Volume->log(VMAN_LOG_DEBUG, "Saving chunk %s to file ..\n", toString().c_str());
 
     if(m_Volume->getBaseDir() == NULL)
     {
@@ -310,7 +310,7 @@ bool Chunk::saveToFile()
     FILE* f = fopen(fileName.c_str(), "wb"); // TODO: Check
     if(f == NULL)
     {
-        m_Volume->log(LOG_ERROR, "%s: Can't open file for writing.\n", fileName.c_str());
+        m_Volume->log(VMAN_LOG_ERROR, "%s: Can't open file for writing.\n", fileName.c_str());
         return false;
     }
 
@@ -371,7 +371,7 @@ bool Chunk::saveToFile()
 void Chunk::addReference()
 {
     m_References++;
-    //m_Volume->log(LOG_DEBUG, "%p references++ = %d\n", this, (int)m_References);
+    //m_Volume->log(VMAN_LOG_DEBUG, "%p references++ = %d\n", this, (int)m_References);
 }
 
 void Chunk::releaseReference()
@@ -381,7 +381,7 @@ void Chunk::releaseReference()
     {
         m_Volume->scheduleCheck(Volume::CHECK_CAUSE_UNUSED, this);
     }
-    //m_Volume->log(LOG_DEBUG, "%p references-- = %d\n", this, (int)m_References);
+    //m_Volume->log(VMAN_LOG_DEBUG, "%p references-- = %d\n", this, (int)m_References);
 }
 
 bool Chunk::isUnused() const
@@ -428,12 +428,12 @@ Chunk::Chunk( const Chunk& chunk ) :
     m_ChunkY(0),
     m_ChunkZ(0)
 {
-	assert(false);
+    assert(false);
 }
 
 Chunk& Chunk::operator = ( const Chunk& chunk )
 {
-	assert(false);
+    assert(false);
     return *this;
 }
 

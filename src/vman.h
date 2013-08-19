@@ -40,8 +40,8 @@ extern "C"
 
 typedef enum
 {
-	VMAN_NO_ERROR = 0,
-	VMAN_OUT_OF_MEMORY
+    VMAN_NO_ERROR = 0,
+    VMAN_OUT_OF_MEMORY
 } vmanError;
 
 VMAN_API int vmanGetError();
@@ -66,8 +66,8 @@ typedef struct
      * Name of the layer, used to identify it.
      * May use up to VMAN_MAX_LAYER_NAME_LENGTH characters.
      */
-	const char* name;
-	
+    const char* name;
+    
     /**
      * Bytes single voxel of this layer occupies.
      */
@@ -100,53 +100,66 @@ typedef struct
 
 typedef struct
 {
-	int chunkGetHits;
-	int chunkGetMisses;
-	
-	int chunkLoadOps;
-	int chunkSaveOps;
-	int chunkUnloadOps;
+    int chunkGetHits;
+    int chunkGetMisses;
+    
+    int chunkLoadOps;
+    int chunkSaveOps;
+    int chunkUnloadOps;
 
-	int readOps;
-	int writeOps;
+    int readOps;
+    int writeOps;
 
-	int maxLoadedChunks;
-	int maxScheduledChecks;
-	int maxEnqueuedJobs;
+    int maxLoadedChunks;
+    int maxScheduledChecks;
+    int maxEnqueuedJobs;
 } vmanStatistics;
 
 
 // -- Volume --
 
+typedef enum
+{
+    VMAN_LOG_DEBUG = 0,
+    VMAN_LOG_INFO,
+    VMAN_LOG_WARNING,
+    VMAN_LOG_ERROR
+} vmanLogLevel;
+
 typedef struct
 {
-	/**
-	 * Array that describes the data layers available to each voxel.
-	 */
-	const vmanLayer* layers;
+    /**
+     * Array that describes the data layers available to each voxel.
+     */
+    const vmanLayer* layers;
 
-	/**
-	 * Amount of elements stored in `layers`.
-	 */
-	int layerCount;
+    /**
+     * Amount of elements stored in `layers`.
+     */
+    int layerCount;
 
-	/**
-	 * Defines the selection used for the internal chunks.
-	 * Don't change this later on!
-	 */
-	int chunkEdgeLength;
+    /**
+     * Defines the selection used for the internal chunks.
+     * Don't change this later on!
+     */
+    int chunkEdgeLength;
 
-	/**
-	 * Chunks are stored here.
-	 * May be `NULL`, then nothing is saved to disk.
-	 */
-	const char* baseDir;
+    /**
+     * Chunks are stored here.
+     * May be `NULL`, then nothing is saved to disk.
+     */
+    const char* baseDir;
 
-	/**
-	 * Whether statistics should be enabled.
-	 */
-	bool enableStatistics;
+    /**
+     * Whether statistics should be enabled.
+     */
+    bool enableStatistics;
 
+    /**
+     * Callback for log messages.
+     * If `NULL` vman uses its internal logging function.
+     */
+    void (*logFn)( vmanLogLevel level, const char* message );
 
 } vmanVolumeParameters;
 
@@ -207,8 +220,8 @@ VMAN_API bool vmanGetStatistics( const vmanVolume volume, vmanStatistics* statis
 
 typedef struct
 {
-	int x, y, z;
-	int w, h, d;
+    int x, y, z;
+    int w, h, d;
 } vmanSelection;
 
 
@@ -216,8 +229,8 @@ typedef struct
 
 typedef enum
 {
-	VMAN_READ_ACCESS  = 1,
-	VMAN_WRITE_ACCESS = 2
+    VMAN_READ_ACCESS  = 1,
+    VMAN_WRITE_ACCESS = 2
 } vmanAccessMode;
 
 typedef void* vmanAccess;

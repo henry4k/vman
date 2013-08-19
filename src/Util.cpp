@@ -5,8 +5,8 @@
 #include "Util.h"
 
 #if defined(__WINDOWS__)
-	#define WIN32_LEAN_AND_MEAN
-	#define NOGDI
+    #define WIN32_LEAN_AND_MEAN
+    #define NOGDI
     #include <windows.h>
 #else
     #include <sys/stat.h>
@@ -18,8 +18,8 @@ namespace vman
 
 bool IsLittleEndian_()
 {
-	const int i = 1;
-	return ( (*(const char*)&i) != 0 );
+    const int i = 1;
+    return ( (*(const char*)&i) != 0 );
 }
 const bool IsLittleEndian = IsLittleEndian_();
 
@@ -158,7 +158,7 @@ std::string SelectionToString( const vmanSelection* selection )
 //tthread::mutex g_AddSecondsMutex;
 time_t AddSeconds( const time_t tv, int seconds )
 {
-	/*
+    /*
     lock_guard guard(g_AddSecondsMutex);
 
     struct tm helper;
@@ -167,8 +167,8 @@ time_t AddSeconds( const time_t tv, int seconds )
     helper.tm_sec += seconds;
 
     return mktime(&helper);
-	*/
-	return tv+seconds;
+    */
+    return tv+seconds;
 }
 
 }

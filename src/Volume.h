@@ -21,49 +21,41 @@ namespace vman
 class Access;
 
 
-enum LogLevel
-{
-    LOG_DEBUG = 0,
-    LOG_INFO,
-    LOG_WARNING,
-    LOG_ERROR
-};
-
 enum Statistic
 {
-	STATISTIC_CHUNK_GET_HITS = 0,
-	STATISTIC_CHUNK_GET_MISSES,
+    STATISTIC_CHUNK_GET_HITS = 0,
+    STATISTIC_CHUNK_GET_MISSES,
 
-	STATISTIC_CHUNK_LOAD_OPS,
-	STATISTIC_CHUNK_SAVE_OPS,
-	STATISTIC_CHUNK_UNLOAD_OPS,
-	
-	STATISTIC_READ_OPS,
-	STATISTIC_WRITE_OPS,
-	
-	STATISTIC_MAX_LOADED_CHUNKS,
-	STATISTIC_MAX_SCHEDULED_CHECKS,
-	STATISTIC_MAX_ENQUEUED_JOBS,
+    STATISTIC_CHUNK_LOAD_OPS,
+    STATISTIC_CHUNK_SAVE_OPS,
+    STATISTIC_CHUNK_UNLOAD_OPS,
+    
+    STATISTIC_READ_OPS,
+    STATISTIC_WRITE_OPS,
+    
+    STATISTIC_MAX_LOADED_CHUNKS,
+    STATISTIC_MAX_SCHEDULED_CHECKS,
+    STATISTIC_MAX_ENQUEUED_JOBS,
 
-	STATISTIC_COUNT
+    STATISTIC_COUNT
 };
 
 
 class Volume
 {
 public:
-	/**
-	 * @see vmanVolumeParameters
-	 */
-	Volume( const vmanVolumeParameters* parameters );
-	~Volume();
+    /**
+     * @see vmanVolumeParameters
+     */
+    Volume( const vmanVolumeParameters* parameters );
+    ~Volume();
 
 
-	/**
+    /**
      * Is thread safe.
-	 * @return The edge length of the chunks cube.
-	 */
-	int getChunkEdgeLength() const;
+     * @return The edge length of the chunks cube.
+     */
+    int getChunkEdgeLength() const;
 
     /**
      * Is thread safe.
@@ -79,19 +71,19 @@ public:
     int getMaxLayerVoxelSize() const;
 
 
-	/**
+    /**
      * Is thread safe.
-	 * @return The amount of voxel layers registered.
-	 */
-	int getLayerCount() const;
+     * @return The amount of voxel layers registered.
+     */
+    int getLayerCount() const;
 
-	/**
+    /**
      * Is thread safe.
-	 * @return A read only pointer to the layer definition
-	 * or `NULL` when something went wrong. (e.g. out of bounds)
-	 * @see getLayerCount
-	 */
-	const vmanLayer* getLayer( int index ) const;
+     * @return A read only pointer to the layer definition
+     * or `NULL` when something went wrong. (e.g. out of bounds)
+     * @see getLayerCount
+     */
+    const vmanLayer* getLayer( int index ) const;
 
     /**
      * Searches for a layer with the given name and returns its index.
@@ -132,10 +124,10 @@ public:
     void voxelToChunkSelection( const vmanSelection* voxelSelection, vmanSelection* chunkSelection );
 
 
-	/**
+    /**
      * Get the chunks of the given coordinates.
-	 *
-	 * Creates a chunk if it doesn't exists yet.
+     *
+     * Creates a chunk if it doesn't exists yet.
      * Chunks that need to be loaded from disk are locked.
      *
      * @param chunksOut
@@ -153,7 +145,7 @@ public:
      * @param priority
      * Parameter used to sort the resulting io jobs.
      * TODO
-	 */
+     */
     void getSelection( const vmanSelection* chunkSelection, Chunk** chunksOut, int priority );
 
 
@@ -185,7 +177,7 @@ public:
      * Writes all modified chunks to disk.
      * Is a no-op if saving to disk has been disabled.
      */
-	void saveModifiedChunks();
+    void saveModifiedChunks();
 
     /**
      *
@@ -212,50 +204,50 @@ public:
      * For logging vman specific messages.
      * Is thread safe.
      */
-    void log( LogLevel level, const char* format, ... ) const;
+    void log( vmanLogLevel level, const char* format, ... ) const;
 
 
-	/**
-	 * Resets all statistics to zero.
-	 * Is thread safe.
-	 */
-	void resetStatistics();
+    /**
+     * Resets all statistics to zero.
+     * Is thread safe.
+     */
+    void resetStatistics();
 
 
-	/**
-	 * Increments a statistic.
-	 * Is thread safe.
-	 */
-	void incStatistic( Statistic statistic, int amount = 1 );
+    /**
+     * Increments a statistic.
+     * Is thread safe.
+     */
+    void incStatistic( Statistic statistic, int amount = 1 );
 
 
-	/**
-	 * Decrements a statistic.
-	 * Is thread safe.
-	 */
-	void decStatistic( Statistic statistic, int amount = 1 );
+    /**
+     * Decrements a statistic.
+     * Is thread safe.
+     */
+    void decStatistic( Statistic statistic, int amount = 1 );
 
 
-	/**
-	 * Sets the value if its greater than the current one.
-	 * Is thread safe.
-	 */
-	void minStatistic( Statistic statistic, int value );
+    /**
+     * Sets the value if its greater than the current one.
+     * Is thread safe.
+     */
+    void minStatistic( Statistic statistic, int value );
 
 
-	/**
-	 * Sets the value if its lower than the current one.
-	 * Is thread safe.
-	 */
-	void maxStatistic( Statistic statistic, int value );
+    /**
+     * Sets the value if its lower than the current one.
+     * Is thread safe.
+     */
+    void maxStatistic( Statistic statistic, int value );
 
 
-	/**
+    /**
      * Writes the current statistics to `statisticsDestination`.
      * @param statisticsDestination Statistics are written to this structure.
      * @return whether the operation succeeded. May return `false` even if statistics were enabled.
-	 */
-	bool getStatistics( vmanStatistics* statisticsDestination ) const;
+     */
+    bool getStatistics( vmanStatistics* statisticsDestination ) const;
 
 
     /**
@@ -265,35 +257,35 @@ public:
     tthread::mutex* getMutex();
 
 
-	/**
-	 * Call this function on abnormal or abprupt program termination.
-	 */
-	static void PanicExit();
-	
+    /**
+     * Call this function on abnormal or abprupt program termination.
+     */
+    static void PanicExit();
+    
 
 private:
-	Volume( const Volume& volume );
-	Volume& operator = ( const Volume& volume );
+    Volume( const Volume& volume );
+    Volume& operator = ( const Volume& volume );
 
-	static tthread::mutex   s_PanicMutex;
-	static std::set<Volume*> s_PanicVolumeSet;
-	
-	void panicExit();
+    static tthread::mutex   s_PanicMutex;
+    static std::set<Volume*> s_PanicVolumeSet;
+    
+    void panicExit();
 
 
     bool chunkFileExists( int chunkX, int chunkY, int chunkZ );
 
-	/**
+    /**
      * Get the chunk of the given coordinates.
-	 *
+     *
      * Note that these are not "voxel coordinates".
-	 * `chunkX = voxelX / chunkEdgeLength`
-	 * Creates the chunk if it doesn't exists yet.
+     * `chunkX = voxelX / chunkEdgeLength`
+     * Creates the chunk if it doesn't exists yet.
      * The function may block while loading a chunk from disk.
      * @param priority Priority when loading a chunk from disk.
-	 * @return The chunk for the given chunk coordinates.
-	 */
-	Chunk* getChunkAt( int chunkX, int chunkY, int chunkZ, int priority );
+     * @return The chunk for the given chunk coordinates.
+     */
+    Chunk* getChunkAt( int chunkX, int chunkY, int chunkZ, int priority );
 
     /**
      * Get the chunk with the given id.
@@ -302,17 +294,17 @@ private:
     Chunk* getLoadedChunkById( ChunkId id );
 
 
-	/**
-	 * Checks if a chunk should be saved or unloaded and runs these actions.
-	 * Note that this function uses the chunks mutex.
+    /**
+     * Checks if a chunk should be saved or unloaded and runs these actions.
+     * Note that this function uses the chunks mutex.
      * @return `true` if the chunk was deleted.
      */
-	bool checkChunk( Chunk* chunk );
+    bool checkChunk( Chunk* chunk );
 
 
-	std::vector<vmanLayer> m_Layers;
+    std::vector<vmanLayer> m_Layers;
     int m_MaxLayerVoxelSize;
-	int m_ChunkEdgeLength;
+    int m_ChunkEdgeLength;
 
     std::map<ChunkId,Chunk*> m_ChunkMap; // Dimension
     std::string m_BaseDir;
@@ -320,13 +312,14 @@ private:
     mutable tthread::mutex m_Mutex;
 
 
+	void (*m_LogFn)( vmanLogLevel level, const char* message );
     mutable tthread::mutex m_LogMutex;
 
 
-	// --- Statistics ---
-	
-	bool m_StatisticsEnabled; // thread safe (is only set in the constructor)
-	tthread::atomic_int m_Statistics[STATISTIC_COUNT];
+    // --- Statistics ---
+    
+    bool m_StatisticsEnabled; // thread safe (is only set in the constructor)
+    tthread::atomic_int m_Statistics[STATISTIC_COUNT];
 
 
     // --- Scheduled Checks ---
@@ -352,12 +345,12 @@ private:
      */
     std::list<ScheduledCheck> m_ScheduledChecks;
     
-	mutable tthread::mutex m_ScheduledChecksMutex;
+    mutable tthread::mutex m_ScheduledChecksMutex;
     
-	tthread::condition_variable m_SchedulerReevaluateCondition;
+    tthread::condition_variable m_SchedulerReevaluateCondition;
     tthread::thread* m_SchedulerThread;
 
-	tthread::atomic_int m_StopSchedulerThread;
+    tthread::atomic_int m_StopSchedulerThread;
 
     static void SchedulerThreadWrapper( void* volumeInstance );
     void schedulerThreadFn();
@@ -390,7 +383,7 @@ private:
     int m_ActiveSaveJobs;
 
     std::vector<tthread::thread*> m_JobThreads;
-	tthread::atomic_int m_StopJobThreads;
+    tthread::atomic_int m_StopJobThreads;
     static void JobThreadWrapper(void* volumeInstance);
     void jobThreadFn();
 };

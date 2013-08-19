@@ -11,7 +11,7 @@ namespace vman
 
 
 Access::Access( Volume* volume ) :
-	m_Volume(volume),
+    m_Volume(volume),
     m_SelectionIsInvalid(true),
     m_IsLocked(false),
     m_AccessMode(VMAN_READ_ACCESS),
@@ -22,7 +22,7 @@ Access::Access( Volume* volume ) :
 
 Access::~Access()
 {
-	assert(m_IsLocked == false);
+    assert(m_IsLocked == false);
     select(NULL); // Unload chunks properly (dereference them)
 }
 
@@ -38,10 +38,10 @@ void Access::select( const vmanSelection* selection )
         m_Cache[i]->releaseReference();
     m_Cache.clear();
 
-	if(selection != NULL)
-	{
-		m_SelectionIsInvalid = false;
-		m_Selection = *selection;
+    if(selection != NULL)
+    {
+        m_SelectionIsInvalid = false;
+        m_Selection = *selection;
         m_Volume->voxelToChunkSelection(&m_Selection, &m_ChunkSelection);
 
         const int chunkCount =
@@ -55,36 +55,36 @@ void Access::select( const vmanSelection* selection )
         for(int i = 0; i < m_Cache.size(); ++i)
             m_Cache[i]->addReference();
         m_Volume->getMutex()->unlock(); // So no one can remove my cached chunks while i'm putting references on them
-	}
+    }
 }
 
 /*
 const vmanSelection* Access::getSelection() const
 {
-	if(m_SelectionIsInvalid)
-		return NULL;
-	else
-		return &m_Selection;
+    if(m_SelectionIsInvalid)
+        return NULL;
+    else
+        return &m_Selection;
 }
 */
 
 void Access::lock( int mode )
 {
-	assert(m_IsLocked == false);
-	m_AccessMode = mode;
+    assert(m_IsLocked == false);
+    m_AccessMode = mode;
 
     for(int i = 0; i < m_Cache.size(); ++i)
     {
         m_Cache[i]->getMutex()->lock();
     }
 
-	m_IsLocked = true;
+    m_IsLocked = true;
 }
 
 bool Access::tryLock( int mode )
 {
-	assert(m_IsLocked == false);
-	m_AccessMode = mode;
+    assert(m_IsLocked == false);
+    m_AccessMode = mode;
 
     for(int i = 0; i < m_Cache.size(); ++i)
     {
@@ -99,20 +99,20 @@ bool Access::tryLock( int mode )
         }
     }
 
-	m_IsLocked = true;
-	return true;
+    m_IsLocked = true;
+    return true;
 }
 
 void Access::unlock()
 {
-	assert(m_IsLocked == true);
+    assert(m_IsLocked == true);
 
     for(int i = 0; i < m_Cache.size(); ++i)
     {
         m_Cache[i]->getMutex()->unlock();
     }
 
-	m_IsLocked = false;
+    m_IsLocked = false;
 }
 
 bool InsideSelection( const vmanSelection* selection, int x, int y, int z )
@@ -130,40 +130,40 @@ bool InsideSelection( const vmanSelection* selection, int x, int y, int z )
 
 const void* Access::readVoxelLayer( int x, int y, int z, int layer ) const
 {
-	m_Volume->incStatistic(STATISTIC_READ_OPS);
+    m_Volume->incStatistic(STATISTIC_READ_OPS);
     return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS);
 }
 
 void* Access::readWriteVoxelLayer( int x, int y, int z, int layer ) const
 {
-	m_Volume->incStatistic(STATISTIC_READ_OPS);
-	m_Volume->incStatistic(STATISTIC_WRITE_OPS);
+    m_Volume->incStatistic(STATISTIC_READ_OPS);
+    m_Volume->incStatistic(STATISTIC_WRITE_OPS);
     return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
 }
 
 void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
 {
-	assert(m_IsLocked == true);
+    assert(m_IsLocked == true);
 
-	if((m_AccessMode & mode) != mode)
-	{
-	    m_Volume->log(LOG_ERROR, "Access mode not allowed!\n");
-	    return NULL;
-	}
+    if((m_AccessMode & mode) != mode)
+    {
+        m_Volume->log(VMAN_LOG_ERROR, "Access mode not allowed!\n");
+        return NULL;
+    }
 
-    m_Volume->log(LOG_DEBUG, "readWriteVoxelLayer( %s ) in access selection (%s).\n",
+    m_Volume->log(VMAN_LOG_DEBUG, "readWriteVoxelLayer( %s ) in access selection (%s).\n",
         CoordsToString(x,y,z).c_str(),
         SelectionToString(&m_Selection).c_str()
     );
 
-	if(InsideSelection(&m_Selection, x,y,z) == false)
-	{
-	    m_Volume->log(LOG_ERROR, "Voxel %s is not in access selection (%s).\n",
-	        CoordsToString(x,y,z).c_str(),
-	        SelectionToString(&m_Selection).c_str()
-	    );
-	    return NULL;
-	}
+    if(InsideSelection(&m_Selection, x,y,z) == false)
+    {
+        m_Volume->log(VMAN_LOG_ERROR, "Voxel %s is not in access selection (%s).\n",
+            CoordsToString(x,y,z).c_str(),
+            SelectionToString(&m_Selection).c_str()
+        );
+        return NULL;
+    }
 
     const int edgeLength = m_Volume->getChunkEdgeLength();
     int chunkX, chunkY, chunkZ;
@@ -179,7 +179,7 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
     // TODO: Temporary
     if(InsideSelection(&m_ChunkSelection, chunkX, chunkY, chunkZ) == false)
     {
-        m_Volume->log(LOG_ERROR, "Chunk %s is not in access selection (%s).\n",
+        m_Volume->log(VMAN_LOG_ERROR, "Chunk %s is not in access selection (%s).\n",
             CoordsToString(chunkX,chunkY,chunkZ).c_str(),
             SelectionToString(&m_ChunkSelection).c_str()
         );
@@ -235,12 +235,12 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
 
 Access::Access( const Access& access )
 {
-	assert(false);
+    assert(false);
 }
 
 Access& Access::operator = ( const Access& access )
 {
-	assert(false);
+    assert(false);
     return *this;
 }
 

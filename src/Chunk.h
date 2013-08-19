@@ -18,12 +18,12 @@ typedef uint64_t ChunkId;
 class Chunk
 {
 public:
-	static ChunkId GenerateChunkId( int chunkX, int chunkY, int chunkZ );
+    static ChunkId GenerateChunkId( int chunkX, int chunkY, int chunkZ );
 
     static std::string ChunkCoordsToString( int chunkX, int chunkY, int chunkZ );
     static std::string ChunkIdToString( ChunkId chunkId );
 
-	Chunk( Volume* volume, int chunkX, int chunkY, int chunkZ );
+    Chunk( Volume* volume, int chunkX, int chunkY, int chunkZ );
     ~Chunk();
 
     int getChunkX() const;
@@ -33,21 +33,21 @@ public:
 
     std::string toString() const;
 
-	/**
-	 * Will create a layer if it doesn't exists already.
-	 * Data is initialized to `0`.
-	 * Use the chunk edge length to compute the array size.
-	 * @return Data of the given layer.
-	 * @see Volume#getChunkEdgeLength
-	 */
-	void* getLayer( int index );
+    /**
+     * Will create a layer if it doesn't exists already.
+     * Data is initialized to `0`.
+     * Use the chunk edge length to compute the array size.
+     * @return Data of the given layer.
+     * @see Volume#getChunkEdgeLength
+     */
+    void* getLayer( int index );
 
-	/**
-	 * Const pointer version of getLayer.
-	 * @return `NULL` if a layer doesn't exists.
-	 * @see getLayer
-	 */
-	const void* getConstLayer( int index ) const;
+    /**
+     * Const pointer version of getLayer.
+     * @return `NULL` if a layer doesn't exists.
+     * @see getLayer
+     */
+    const void* getConstLayer( int index ) const;
 
     /**
      * Clears chunk on failure!
@@ -110,10 +110,10 @@ public:
 //private:
     static void UnpackChunkId( ChunkId chunkId, int* outX, int* outY, int* outZ );
 
-	Chunk( const Chunk& chunk );
-	Chunk& operator = ( const Chunk& chunk );
+    Chunk( const Chunk& chunk );
+    Chunk& operator = ( const Chunk& chunk );
 
-	void initializeLayer( int index );
+    void initializeLayer( int index );
 
 
     /**
@@ -122,7 +122,7 @@ public:
      */
     void clearLayers( bool silent = false );
 
-	Volume* m_Volume;
+    Volume* m_Volume;
 
     const int m_ChunkX;
     const int m_ChunkY;
@@ -134,18 +134,18 @@ public:
      * in that case the layers default voxel value shuld be used.
      * Voxels have to be initialized with `0`!
      */
-	std::vector<char*> m_Layers;
+    std::vector<char*> m_Layers;
 
-	/**
-	 * Which layers are compressed.
-	 */
-	// std::vector<bool> m_LayerCompressed;
+    /**
+     * Which layers are compressed.
+     */
+    // std::vector<bool> m_LayerCompressed;
 
-	/**
-	 * True when the chunk has been modified
-	 * and needs to be written to disk.
-	 */
-	bool m_Modified;
+    /**
+     * True when the chunk has been modified
+     * and needs to be written to disk.
+     */
+    bool m_Modified;
 
 
     /**

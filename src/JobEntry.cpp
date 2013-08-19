@@ -34,8 +34,8 @@ JobEntry::JobEntry( const JobEntry& e ) :
 
 JobEntry& JobEntry::operator = ( const JobEntry& e )
 {
-	if(m_Chunk)
-		m_Chunk->releaseReference();
+    if(m_Chunk)
+        m_Chunk->releaseReference();
 
     m_Priority = e.m_Priority;
     m_Type     = e.m_Type;

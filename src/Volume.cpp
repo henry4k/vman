@@ -16,14 +16,15 @@ namespace vman
 {
 
 Volume::Volume( const vmanVolumeParameters* p ) :
-	m_Layers(&p->layers[0], &p->layers[p->layerCount]),
+    m_Layers(&p->layers[0], &p->layers[p->layerCount]),
     m_MaxLayerVoxelSize(0),
-	m_ChunkEdgeLength(p->chunkEdgeLength),
-	m_ChunkMap(),
+    m_ChunkEdgeLength(p->chunkEdgeLength),
+    m_ChunkMap(),
     m_BaseDir(), // Just to make it clear.
     m_Mutex(),
+	m_LogFn(p->logFn),
     m_LogMutex(),
-	m_StatisticsEnabled(p->enableStatistics),
+    m_StatisticsEnabled(p->enableStatistics),
 
     m_UnusedChunkTimeout(4),
     m_ModifiedChunkTimeout(3),
@@ -31,15 +32,15 @@ Volume::Volume( const vmanVolumeParameters* p ) :
     m_ScheduledChecksMutex(),
     m_SchedulerReevaluateCondition(),
     m_SchedulerThread(NULL),
-	m_StopSchedulerThread(0),
+    m_StopSchedulerThread(0),
 
     m_NewJobCondition(),
-	m_JobListMutex(),
+    m_JobListMutex(),
     m_JobList(),
     m_ActiveLoadJobs(0),
     m_ActiveSaveJobs(0),
     m_JobThreads(),
-	m_StopJobThreads(0)
+    m_StopJobThreads(0)
 {
     if(p->baseDir != NULL)
         m_BaseDir = p->baseDir;
@@ -60,7 +61,7 @@ Volume::Volume( const vmanVolumeParameters* p ) :
             m_MaxLayerVoxelSize = layer->voxelSize;
     }
 
-	resetStatistics();
+    resetStatistics();
 
     int workerCount = 4; // tthread::thread::hardware_concurrency() * 2; // This should do the trick at first.
     if(m_BaseDir.empty())
@@ -74,16 +75,16 @@ Volume::Volume( const vmanVolumeParameters* p ) :
 
     m_SchedulerThread = new tthread::thread(SchedulerThreadWrapper, this, "Scheduler");
 
-	s_PanicMutex.lock();
-	s_PanicVolumeSet.insert(this);
-	s_PanicMutex.unlock();
+    s_PanicMutex.lock();
+    s_PanicVolumeSet.insert(this);
+    s_PanicMutex.unlock();
 }
 
 Volume::~Volume()
 {
     // DEBUG START
     m_ScheduledChecksMutex.lock();
-    log(LOG_DEBUG, "%d scheduled checks.\n",
+    log(VMAN_LOG_DEBUG, "%d scheduled checks.\n",
         m_ScheduledChecks.size()
     );
     m_ScheduledChecksMutex.unlock();
@@ -91,25 +92,25 @@ Volume::~Volume()
 
     m_StopSchedulerThread = 1;
     assert(m_SchedulerThread->joinable());
-	{
-		m_SchedulerReevaluateCondition.notify_all();
-		m_SchedulerThread->join();
-		log(LOG_DEBUG, "Joined Scheduler Thread!\n");
-	}
-	delete m_SchedulerThread;
-	m_SchedulerThread = NULL;
+    {
+        m_SchedulerReevaluateCondition.notify_all();
+        m_SchedulerThread->join();
+        log(VMAN_LOG_DEBUG, "Joined Scheduler Thread!\n");
+    }
+    delete m_SchedulerThread;
+    m_SchedulerThread = NULL;
 
-	saveModifiedChunks();
+    saveModifiedChunks();
 
     // DEBUG START
     m_JobListMutex.lock();
-    log(LOG_DEBUG, "%d enqueued jobs.\n",
+    log(VMAN_LOG_DEBUG, "%d enqueued jobs.\n",
         m_JobList.size()
     );
     m_JobListMutex.unlock();
     // DEBUG END
 
-	m_StopJobThreads = 1;
+    m_StopJobThreads = 1;
     m_NewJobCondition.notify_all();
     std::vector<tthread::thread*>::iterator i = m_JobThreads.begin();
     for(; i != m_JobThreads.end(); ++i)
@@ -127,9 +128,9 @@ Volume::~Volume()
         delete j->second;
     }
 
-	s_PanicMutex.lock();
-	s_PanicVolumeSet.erase(this);
-	s_PanicMutex.unlock();
+    s_PanicMutex.lock();
+    s_PanicVolumeSet.erase(this);
+    s_PanicMutex.unlock();
 }
 
 tthread::mutex   Volume::s_PanicMutex;
@@ -137,45 +138,45 @@ std::set<Volume*> Volume::s_PanicVolumeSet;
 
 void Volume::PanicExit()
 {
-	lock_guard guard(s_PanicMutex);
-	std::set<Volume*>::const_iterator i = s_PanicVolumeSet.begin();
-	for(; i != s_PanicVolumeSet.end(); ++i)
-	{
-		(*i)->panicExit();
-	}
-	s_PanicVolumeSet.clear();
+    lock_guard guard(s_PanicMutex);
+    std::set<Volume*>::const_iterator i = s_PanicVolumeSet.begin();
+    for(; i != s_PanicVolumeSet.end(); ++i)
+    {
+        (*i)->panicExit();
+    }
+    s_PanicVolumeSet.clear();
 }
 
 void Volume::panicExit()
 {
-	/*
-	lock_guard guard(m_Mutex);
+    /*
+    lock_guard guard(m_Mutex);
     for(; i != m_ChunkMap.end(); ++i)
     {
-		Chunk* chunk = i->second;
+        Chunk* chunk = i->second;
         assert(chunk != NULL);
 
-		lock_guard chunkGuard(*chunk->getMutex());
-		if(chunk->isModified())
-			chunk->saveToFile();
+        lock_guard chunkGuard(*chunk->getMutex());
+        if(chunk->isModified())
+            chunk->saveToFile();
     }
-	*/
+    */
 
-	saveModifiedChunks();
-	
-	m_StopJobThreads = 1;
+    saveModifiedChunks();
+    
+    m_StopJobThreads = 1;
     m_NewJobCondition.notify_all();
     std::vector<tthread::thread*>::iterator i = m_JobThreads.begin();
     for(; i != m_JobThreads.end(); ++i)
     {
         if((*i)->joinable())
             (*i)->join();
-	}
+    }
 }
 
 int Volume::getLayerCount() const
 {
-	return m_Layers.size();
+    return m_Layers.size();
 }
 
 int Volume::getMaxLayerVoxelSize() const
@@ -190,9 +191,9 @@ int Volume::getVoxelsPerChunk() const
 
 const vmanLayer* Volume::getLayer( int index ) const
 {
-	assert(index >= 0);
-	assert(index < getLayerCount());
-	return &m_Layers[index];
+    assert(index >= 0);
+    assert(index < getLayerCount());
+    return &m_Layers[index];
 }
 
 int Volume::getLayerIndexByName( const char* name ) const
@@ -205,7 +206,7 @@ int Volume::getLayerIndexByName( const char* name ) const
 
 int Volume::getChunkEdgeLength() const
 {
-	return m_ChunkEdgeLength;
+    return m_ChunkEdgeLength;
 }
 
 const char* Volume::getBaseDir() const
@@ -230,98 +231,112 @@ std::string Volume::getChunkFileName( int chunkX, int chunkY, int chunkZ ) const
     return r;
 }
 
-void Volume::log( LogLevel level, const char* format, ... ) const
+void Volume::log( vmanLogLevel level, const char* format, ... ) const
 {
     lock_guard guard(m_LogMutex);
 
-	FILE* logfile = NULL;
-    switch(level)
-    {
-		case LOG_WARNING:
-		case LOG_ERROR:
-			logfile = stderr;
+	if(m_LogFn)
+	{
+		char buffer[256];
 
-		default:
-			logfile = stdout;
-    }
+		va_list vl;
+		va_start(vl,format);
+		vsprintf(buffer, format, vl);
+		va_end(vl);
 
-	const time_t now = time(NULL);
-	const struct tm* timeinfo = localtime(&now);
-	char timeBuffer[48];
-	strftime(timeBuffer, sizeof(timeBuffer), "%H:%M:%S", timeinfo);
+		m_LogFn(level, buffer);
+	}
+	else
+	{
+		FILE* logfile = NULL;
+		switch(level)
+		{
+			case VMAN_LOG_WARNING:
+			case VMAN_LOG_ERROR:
+				logfile = stderr;
 
-	const char* levelName = NULL;
-    switch(level)
-    {
-        case LOG_DEBUG:   levelName = "DEBUG";   break;
-        case LOG_INFO:    levelName = "INFO";    break;
-        case LOG_WARNING: levelName = "WARNING"; break;
-        case LOG_ERROR:   levelName = "ERROR";   break;
-    }
+			default:
+				logfile = stdout;
+		}
 
-    fprintf(logfile,"[%s %s %s] ", timeBuffer, levelName, tthread::this_thread::get_name().c_str());
+		const time_t now = time(NULL);
+		const struct tm* timeinfo = localtime(&now);
+		char timeBuffer[48];
+		strftime(timeBuffer, sizeof(timeBuffer), "%H:%M:%S", timeinfo);
 
-    va_list vl;
-    va_start(vl,format);
-    vfprintf(logfile, format, vl);
-    va_end(vl);
+		const char* levelName = NULL;
+		switch(level)
+		{
+			case VMAN_LOG_DEBUG:   levelName = "DEBUG";   break;
+			case VMAN_LOG_INFO:    levelName = "INFO";    break;
+			case VMAN_LOG_WARNING: levelName = "WARNING"; break;
+			case VMAN_LOG_ERROR:   levelName = "ERROR";   break;
+		}
+
+		fprintf(logfile,"[%s %s %s] ", timeBuffer, levelName, tthread::this_thread::get_name().c_str());
+
+		va_list vl;
+		va_start(vl,format);
+		vfprintf(logfile, format, vl);
+		va_end(vl);
+	}
 }
 
 void Volume::resetStatistics()
 {
-	if(m_StatisticsEnabled)
-		for(int i = 0; i < STATISTIC_COUNT; ++i)
-			m_Statistics[i] = 0;
+    if(m_StatisticsEnabled)
+        for(int i = 0; i < STATISTIC_COUNT; ++i)
+            m_Statistics[i] = 0;
 }
 
 void Volume::incStatistic( Statistic statistic, int amount )
 {
-	if(m_StatisticsEnabled)
-		m_Statistics[statistic].fetch_add(amount);
+    if(m_StatisticsEnabled)
+        m_Statistics[statistic].fetch_add(amount);
 }
 
 void Volume::decStatistic( Statistic statistic, int amount )
 {
-	if(m_StatisticsEnabled)
-		m_Statistics[statistic].fetch_sub(amount);
+    if(m_StatisticsEnabled)
+        m_Statistics[statistic].fetch_sub(amount);
 }
 
 void Volume::maxStatistic( Statistic statistic, int value )
 {
-	if(m_StatisticsEnabled)
-		if(value > m_Statistics[statistic])
-			m_Statistics[statistic] = value;
+    if(m_StatisticsEnabled)
+        if(value > m_Statistics[statistic])
+            m_Statistics[statistic] = value;
 }
 
 void Volume::minStatistic( Statistic statistic, int value )
 {
-	if(m_StatisticsEnabled)
-		if(m_Statistics[statistic] > value)
-			m_Statistics[statistic] = value;
+    if(m_StatisticsEnabled)
+        if(m_Statistics[statistic] > value)
+            m_Statistics[statistic] = value;
 }
 
 bool Volume::getStatistics( vmanStatistics* statisticsDestination ) const
 {
-	assert(statisticsDestination != NULL);
+    assert(statisticsDestination != NULL);
 
-	if(m_StatisticsEnabled == false)
-		return false;
+    if(m_StatisticsEnabled == false)
+        return false;
 
-	statisticsDestination->chunkGetHits = m_Statistics[STATISTIC_CHUNK_GET_HITS];
-	statisticsDestination->chunkGetMisses = m_Statistics[STATISTIC_CHUNK_GET_MISSES];
+    statisticsDestination->chunkGetHits = m_Statistics[STATISTIC_CHUNK_GET_HITS];
+    statisticsDestination->chunkGetMisses = m_Statistics[STATISTIC_CHUNK_GET_MISSES];
 
-	statisticsDestination->chunkLoadOps = m_Statistics[STATISTIC_CHUNK_LOAD_OPS];
-	statisticsDestination->chunkSaveOps = m_Statistics[STATISTIC_CHUNK_SAVE_OPS];
-	statisticsDestination->chunkUnloadOps = m_Statistics[STATISTIC_CHUNK_UNLOAD_OPS];
+    statisticsDestination->chunkLoadOps = m_Statistics[STATISTIC_CHUNK_LOAD_OPS];
+    statisticsDestination->chunkSaveOps = m_Statistics[STATISTIC_CHUNK_SAVE_OPS];
+    statisticsDestination->chunkUnloadOps = m_Statistics[STATISTIC_CHUNK_UNLOAD_OPS];
 
-	statisticsDestination->readOps = m_Statistics[STATISTIC_READ_OPS];
-	statisticsDestination->writeOps = m_Statistics[STATISTIC_WRITE_OPS];
+    statisticsDestination->readOps = m_Statistics[STATISTIC_READ_OPS];
+    statisticsDestination->writeOps = m_Statistics[STATISTIC_WRITE_OPS];
 
-	statisticsDestination->maxLoadedChunks = m_Statistics[STATISTIC_MAX_LOADED_CHUNKS];
-	statisticsDestination->maxScheduledChecks = m_Statistics[STATISTIC_MAX_SCHEDULED_CHECKS];
-	statisticsDestination->maxEnqueuedJobs = m_Statistics[STATISTIC_MAX_ENQUEUED_JOBS];
+    statisticsDestination->maxLoadedChunks = m_Statistics[STATISTIC_MAX_LOADED_CHUNKS];
+    statisticsDestination->maxScheduledChecks = m_Statistics[STATISTIC_MAX_SCHEDULED_CHECKS];
+    statisticsDestination->maxEnqueuedJobs = m_Statistics[STATISTIC_MAX_ENQUEUED_JOBS];
 
-	return true;
+    return true;
 }
 
 
@@ -398,48 +413,48 @@ bool Volume::chunkFileExists( int chunkX, int chunkY, int chunkZ )
 // TODO: Make sure that chunks returned by this get referenced .. or they may become zombies.
 Chunk* Volume::getChunkAt( int chunkX, int chunkY, int chunkZ, int priority )
 {
-	ChunkId id = Chunk::GenerateChunkId(chunkX, chunkY, chunkZ);
+    ChunkId id = Chunk::GenerateChunkId(chunkX, chunkY, chunkZ);
 
     Chunk* chunk = getLoadedChunkById(id);
 
-	if(chunk == NULL)
-	{
-		incStatistic(STATISTIC_CHUNK_GET_MISSES);
+    if(chunk == NULL)
+    {
+        incStatistic(STATISTIC_CHUNK_GET_MISSES);
 
         chunk = new Chunk(this, chunkX, chunkY, chunkZ);
 
         if(chunkFileExists(chunkX, chunkY, chunkZ))
         {
-            log(LOG_DEBUG, "Try loading chunk %s ..\n",
+            log(VMAN_LOG_DEBUG, "Try loading chunk %s ..\n",
                 CoordsToString(chunkX, chunkY, chunkZ).c_str()
             );
-			lock_guard jobListGuard(m_JobListMutex);
+            lock_guard jobListGuard(m_JobListMutex);
             addJob(LOAD_JOB, priority, chunk);
         }
 
-		m_ChunkMap.insert( std::pair<ChunkId,Chunk*>(id,chunk) );
+        m_ChunkMap.insert( std::pair<ChunkId,Chunk*>(id,chunk) );
 
-		maxStatistic(STATISTIC_MAX_LOADED_CHUNKS, m_ChunkMap.size());
-	}
-	else
-	{
-		incStatistic(STATISTIC_CHUNK_GET_HITS);
-	}
-	return chunk;
+        maxStatistic(STATISTIC_MAX_LOADED_CHUNKS, m_ChunkMap.size());
+    }
+    else
+    {
+        incStatistic(STATISTIC_CHUNK_GET_HITS);
+    }
+    return chunk;
 }
 
 Chunk* Volume::getLoadedChunkById( ChunkId id )
 {
     std::map<ChunkId,Chunk*>::iterator it = m_ChunkMap.find(id);
-	if(it != m_ChunkMap.end())
-	{
-	    assert(id == it->second->getId());
-		return it->second;
-	}
-	else
-	{
-	    return NULL;
-	}
+    if(it != m_ChunkMap.end())
+    {
+        assert(id == it->second->getId());
+        return it->second;
+    }
+    else
+    {
+        return NULL;
+    }
 }
 
 bool Volume::checkChunk( Chunk* chunk )
@@ -451,26 +466,26 @@ bool Volume::checkChunk( Chunk* chunk )
     
     if(chunk->isModified() && m_BaseDir.empty() == false)
     {
-		// Don't save if automatic saving has been disabled
-		if(getModifiedChunkTimeout() < 0)
-			saveChunk = false;
-	    // Save immediately
-		else if(getModifiedChunkTimeout() == 0 || m_StopJobThreads.load())
-			saveChunk = true;
-		// Timeout triggered
-		else if(difftime(time(NULL), chunk->getModificationTime()) >= getModifiedChunkTimeout())
-			saveChunk = true;
+        // Don't save if automatic saving has been disabled
+        if(getModifiedChunkTimeout() < 0)
+            saveChunk = false;
+        // Save immediately
+        else if(getModifiedChunkTimeout() == 0 || m_StopJobThreads.load())
+            saveChunk = true;
+        // Timeout triggered
+        else if(difftime(time(NULL), chunk->getModificationTime()) >= getModifiedChunkTimeout())
+            saveChunk = true;
     }
 
     if(saveChunk)
     {
-		lock_guard jobListGuard(m_JobListMutex);
+        lock_guard jobListGuard(m_JobListMutex);
         addJob(SAVE_JOB, 0, chunk); // TODO: Should have minimum priority
     }
     else if(unloadChunk && chunk->isModified() == false)
     {
-		incStatistic(STATISTIC_CHUNK_UNLOAD_OPS);
-		log(LOG_DEBUG, "Unloading chunk %s ...\n", chunk->toString().c_str());
+        incStatistic(STATISTIC_CHUNK_UNLOAD_OPS);
+        log(VMAN_LOG_DEBUG, "Unloading chunk %s ...\n", chunk->toString().c_str());
         m_ChunkMap.erase(chunk->getId());
         chunk->getMutex()->unlock();
         delete chunk;
@@ -483,21 +498,21 @@ bool Volume::checkChunk( Chunk* chunk )
 
 void Volume::saveModifiedChunks()
 {
-	if(m_BaseDir.empty())
-		return;
+    if(m_BaseDir.empty())
+        return;
 
-	lock_guard jobListGuard(m_JobListMutex);
+    lock_guard jobListGuard(m_JobListMutex);
 
     std::map<ChunkId,Chunk*>::const_iterator i = m_ChunkMap.begin();
     for(; i != m_ChunkMap.end(); ++i)
     {
-		Chunk* chunk = i->second;
+        Chunk* chunk = i->second;
         assert(chunk != NULL);
 
-		lock_guard chunkGuard(*chunk->getMutex());
+        lock_guard chunkGuard(*chunk->getMutex());
 
-		if(chunk->isModified())
-			addJob(SAVE_JOB, 0, chunk); // TODO: Should have minimum priority
+        if(chunk->isModified())
+            addJob(SAVE_JOB, 0, chunk); // TODO: Should have minimum priority
     }
 }
 
@@ -547,8 +562,8 @@ void Volume::scheduleCheck( CheckCause cause, Chunk* chunk )
 
 void Volume::scheduleCheck( Chunk* chunk, double seconds )
 {
-	if(m_StopSchedulerThread == true)
-		return;
+    if(m_StopSchedulerThread == true)
+        return;
 
     ScheduledCheck check;
     check.executionTime = AddSeconds(time(NULL), seconds);
@@ -556,10 +571,10 @@ void Volume::scheduleCheck( Chunk* chunk, double seconds )
 
     m_ScheduledChecksMutex.lock();
     m_ScheduledChecks.push_back(check); // TODO: Sort in correctly
-	maxStatistic(STATISTIC_MAX_SCHEDULED_CHECKS, m_ScheduledChecks.size());
+    maxStatistic(STATISTIC_MAX_SCHEDULED_CHECKS, m_ScheduledChecks.size());
     m_ScheduledChecksMutex.unlock();
 
-	m_SchedulerReevaluateCondition.notify_one();
+    m_SchedulerReevaluateCondition.notify_one();
 }
 
 void Volume::SchedulerThreadWrapper( void* volumeInstance )
@@ -580,8 +595,8 @@ void Volume::schedulerThreadFn()
 
             while(m_ScheduledChecks.empty())
             {
-				if(m_StopSchedulerThread.load())
-					return;
+                if(m_StopSchedulerThread.load())
+                    return;
 
                 m_SchedulerReevaluateCondition.wait(m_ScheduledChecksMutex);
 
@@ -592,23 +607,23 @@ void Volume::schedulerThreadFn()
             check = m_ScheduledChecks.front();
             m_ScheduledChecks.pop_front();
         }
-		
-		{
-			lock_guard volumeGuard(m_Mutex);
-			
-			const double waitTime = m_StopSchedulerThread.load() ? 0.0 : difftime(check.executionTime, time(NULL));
-			if(waitTime > NO_WAIT_EPSILON)
-			{
-				const tthread::chrono::milliseconds milliseconds(waitTime*1000);
-				m_SchedulerReevaluateCondition.wait_for(m_Mutex, milliseconds);
-			}
+        
+        {
+            lock_guard volumeGuard(m_Mutex);
+            
+            const double waitTime = m_StopSchedulerThread.load() ? 0.0 : difftime(check.executionTime, time(NULL));
+            if(waitTime > NO_WAIT_EPSILON)
+            {
+                const tthread::chrono::milliseconds milliseconds(waitTime*1000);
+                m_SchedulerReevaluateCondition.wait_for(m_Mutex, milliseconds);
+            }
 
-			Chunk* chunk = getLoadedChunkById(check.chunkId);
-			if(chunk != NULL)
-			{
-				checkChunk(chunk);
-			}
-		}
+            Chunk* chunk = getLoadedChunkById(check.chunkId);
+            if(chunk != NULL)
+            {
+                checkChunk(chunk);
+            }
+        }
     }
 }
 
@@ -677,7 +692,7 @@ void Volume::addJob( JobType type, int priority, Chunk* chunk )
     if(i == m_JobList.end())
         m_JobList.push_back(job);
 
-	maxStatistic(STATISTIC_MAX_ENQUEUED_JOBS, m_JobList.size());
+    maxStatistic(STATISTIC_MAX_ENQUEUED_JOBS, m_JobList.size());
 
     // Notify one waiting thread, that there is a new job available
     m_NewJobCondition.notify_one();
@@ -730,20 +745,20 @@ void Volume::jobThreadFn()
         bool success = true;
 
         {
-			{
-				lock_guard guard(m_JobListMutex);
-				job = getJob();
+            {
+                lock_guard guard(m_JobListMutex);
+                job = getJob();
 
-				while(job.getType() == INVALID_JOB)
-				{
-					if(m_StopJobThreads.load())
-						return;
+                while(job.getType() == INVALID_JOB)
+                {
+                    if(m_StopJobThreads.load())
+                        return;
 
-					// Unlocks mutex while waiting for the condition
-					m_NewJobCondition.wait(m_JobListMutex);
-					job = getJob();
-				}
-			}
+                    // Unlocks mutex while waiting for the condition
+                    m_NewJobCondition.wait(m_JobListMutex);
+                    job = getJob();
+                }
+            }
 
             {
                 lock_guard chunkGuard(*job.getChunk()->getMutex());
@@ -752,7 +767,7 @@ void Volume::jobThreadFn()
                     case LOAD_JOB:
                         if(job.getChunk()->isUnused())
                         {
-                            log(LOG_WARNING, "Canceled load job of chunk %s, because it's unused and would be deleted immediately.",
+                            log(VMAN_LOG_WARNING, "Canceled load job of chunk %s, because it's unused and would be deleted immediately.",
                                 job.getChunk()->toString().c_str()
                             );
                         }
@@ -774,7 +789,7 @@ void Volume::jobThreadFn()
 
         if(success)
         {
-			lock_guard volumeGuard(m_Mutex);
+            lock_guard volumeGuard(m_Mutex);
             checkChunk(job.getChunk());
             // ^- For deleting unused chunks directly after saving them to disk
         }
@@ -793,12 +808,12 @@ tthread::mutex* Volume::getMutex()
 
 Volume::Volume( const Volume& volume )
 {
-	assert(false);
+    assert(false);
 }
 
 Volume& Volume::operator = ( const Volume& volume )
 {
-	assert(false);
+    assert(false);
     return *this;
 }
 
