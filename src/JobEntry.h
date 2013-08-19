@@ -58,7 +58,7 @@ public:
     JobEntry( int priority, JobType type, Chunk* chunk );
 
     JobEntry( const JobEntry& e );
-	JobEntry& operator = ( const JobEntry& e );
+    JobEntry& operator = ( const JobEntry& e );
 
     ~JobEntry();
 

@@ -13,12 +13,12 @@
 
 void vmanPanicExit()
 {
-	vman::Volume::PanicExit();
+    vman::Volume::PanicExit();
 }
 
 void vmanInitVolumeParameters( vmanVolumeParameters* parameters )
 {
-	memset(parameters, 0, sizeof(vmanVolumeParameters));
+    memset(parameters, 0, sizeof(vmanVolumeParameters));
 }
 
 vmanVolume vmanCreateVolume( const vmanVolumeParameters* parameters )
