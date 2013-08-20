@@ -1,0 +1,10 @@
+digraph "PanicExit"
+{
+  bgcolor="transparent";
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="PanicExit",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled" fontcolor="black"];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="vmanPanicExit",height=0.2,width=0.4,color="black",URL="$vman_8h.html#a5063f3f3d9eacf68746499d7649e98d9",tooltip="Call this function on abnormal or abprupt program termination."];
+}

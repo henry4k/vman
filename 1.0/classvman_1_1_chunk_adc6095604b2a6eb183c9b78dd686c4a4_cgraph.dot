@@ -1,0 +1,42 @@
+digraph "saveToFile"
+{
+  bgcolor="transparent";
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="saveToFile",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled" fontcolor="black"];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="vman::Volume::incStatistic",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a00187a23c7f12d948e1da51cac903472",tooltip="Increments a statistic."];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="vman::Volume::log",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a598ea8a58588f3b83254b183b7d4f0a5",tooltip="For logging vman specific messages."];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="toString",height=0.2,width=0.4,color="black",URL="$classvman_1_1_chunk.html#a3f23c97b6c9f2a88e1121d1c633ccafa"];
+  Node4 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="vman::Format",height=0.2,width=0.4,color="black",URL="$namespacevman.html#ac3e1f8a132b323857161d6e615a75abe"];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="vman::Volume::getBaseDir",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a85c76505018956a7a37decb5cacf24a5",tooltip="Directory where the chunks are stored."];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="vman::Volume::getVoxelsPer\lChunk",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#af1a19cac534e3637c42f0c2b8fe07cc5",tooltip="Is thread safe."];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="vman::Volume::getChunkFileName",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a5e9a9bdafd987efd22d7fcf1407c0f6f",tooltip="Generates the file name where a specific chunk could be stored."];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="vman::MakePath",height=0.2,width=0.4,color="black",URL="$namespacevman.html#aa997ff2054979469be7decbfa9af7cfa",tooltip="Creates directory entries for all segments followed by an directory separator."];
+  Node9 -> Node10 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node10 [label="vman::GetFileType",height=0.2,width=0.4,color="black",URL="$namespacevman.html#accaded6ee243677039bdc6679f8a87d2"];
+  Node9 -> Node11 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node11 [label="vman::MakeDirectory",height=0.2,width=0.4,color="black",URL="$namespacevman.html#afb007d71edd5573cd8e0b3752c213c01"];
+  Node1 -> Node12 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node12 [label="vman::LittleEndian",height=0.2,width=0.4,color="black",URL="$namespacevman.html#a5035fe0000ff08cad2c4dc2583dc9b00"];
+  Node12 -> Node13 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node13 [label="vman::EndianSwap",height=0.2,width=0.4,color="black",URL="$namespacevman.html#ab17926368ee8c720294ecf3998758a75"];
+  Node1 -> Node14 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node14 [label="vman::Volume::getChunkEdge\lLength",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a47cba828c841c9f4710ecb93563225be",tooltip="Is thread safe."];
+  Node1 -> Node15 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node15 [label="vman::Volume::getLayer",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a993509fa90ad7c16346df867ab88ab7c",tooltip="Is thread safe."];
+  Node15 -> Node16 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node16 [label="vman::Volume::getLayerCount",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#aef946f3e09723b94cd86f7aab100c181",tooltip="Is thread safe."];
+  Node1 -> Node17 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node17 [label="vman::Volume::getMaxLayer\lVoxelSize",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#abd2322f7701c3a1e92a9050eb2924c34",tooltip="Is thread safe."];
+  Node1 -> Node18 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node18 [label="unsetModified",height=0.2,width=0.4,color="black",URL="$classvman_1_1_chunk.html#a6d1384604666e55d75f83324f770b048",tooltip="Resets the modified flag."];
+}

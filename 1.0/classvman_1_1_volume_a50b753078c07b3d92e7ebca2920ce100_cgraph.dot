@@ -1,0 +1,16 @@
+digraph "~Volume"
+{
+  bgcolor="transparent";
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="~Volume",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled" fontcolor="black"];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="log",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a598ea8a58588f3b83254b183b7d4f0a5",tooltip="For logging vman specific messages."];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="saveModifiedChunks",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#ab6b0763fc57f8bfc5b184093392ca232",tooltip="Writes all modified chunks to disk."];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="vman::Chunk::getMutex",height=0.2,width=0.4,color="black",URL="$classvman_1_1_chunk.html#a506608924e0da437982b0e3bdfbf2cf5",tooltip="Use this to lock the object while using methods that aren&#39;t thread safe."];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="vman::Chunk::isModified",height=0.2,width=0.4,color="black",URL="$classvman_1_1_chunk.html#a5f692bfbe939574b6e89835e959a66ac"];
+}

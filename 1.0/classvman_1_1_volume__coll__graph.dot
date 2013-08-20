@@ -1,0 +1,7 @@
+digraph "Volume"
+{
+  bgcolor="transparent";
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{Volume\n||+ Volume()\l+ ~Volume()\l+ getChunkEdgeLength()\l+ getVoxelsPerChunk()\l+ getMaxLayerVoxelSize()\l+ getLayerCount()\l+ getLayer()\l+ getLayerIndexByName()\l+ getBaseDir()\l+ getChunkFileName()\land 17 more...\l+ PanicExit()\l}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled" fontcolor="black"];
+}

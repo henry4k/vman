@@ -1,0 +1,16 @@
+digraph "~JobEntry"
+{
+  bgcolor="transparent";
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="~JobEntry",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled" fontcolor="black"];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="vman::Chunk::releaseReference",height=0.2,width=0.4,color="black",URL="$classvman_1_1_chunk.html#a6fd2611f78fe611efffaff9977c1c786",tooltip="Decrements the internal reference counter."];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="vman::Volume::scheduleCheck",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a15f313adc5b5c72e590243a700d86209",tooltip="Schedules tasks that will be run in the future."];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="vman::Volume::getUnusedChunk\lTimeout",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#ad552a1782ffef3cad60b3d36fe9fdc38",tooltip="Timeout after that unreferenced chunks are unloaded."];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="vman::Volume::getModified\lChunkTimeout",height=0.2,width=0.4,color="black",URL="$classvman_1_1_volume.html#a18d7cee2391a1a29a93b1ea46dba7c52",tooltip="Timeout after that modified chunks are saved to disk."];
+}
