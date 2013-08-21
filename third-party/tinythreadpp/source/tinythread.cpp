@@ -87,7 +87,7 @@ cv_status::_enum condition_variable::_wait(const double seconds)
   }
   else
   {
-      timoutMS = (DWORD)(1000.0 * seconds + 0.5);
+      timeoutMS = (DWORD)(1000.0 * seconds + 0.5);
       if(timeoutMS <= 0)
           timeoutMS = 1;
   }

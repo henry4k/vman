@@ -60,9 +60,10 @@ Chunk::Chunk( Volume* volume, int chunkX, int chunkY, int chunkZ ) :
     m_ChunkX(chunkX),
     m_ChunkY(chunkY),
     m_ChunkZ(chunkZ),
-    m_Layers(volume->getLayerCount(), NULL), // n layers initialized with NULL
+    m_Layers(volume->getLayerCount()), // n layers initialized with NULL
     m_Modified(false)
 {
+	memset(m_Layers[0], 0, m_Layers.size()*sizeof(char*));
 }
 
 Chunk::~Chunk()
