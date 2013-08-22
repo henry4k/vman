@@ -1,9 +1,15 @@
 #!/bin/bash
 
+if [ -t 1 ]; then # test if stdout is a terminal
+	BoldRed='\033[1;31m'
+	BoldGreen='\033[1;32m'
+	ResetColor='\033[0m'
+else
+	BoldRed=''
+	BoldGreen=''
+	ResetColor=''
+fi
 
-BoldRed='\033[1;31m'
-BoldGreen='\033[1;32m'
-ResetColor='\033[0m'
 
 function Error
 {
@@ -38,8 +44,7 @@ function RunTest
 	local testExecutable="$SourceDir/$2"
 	shift 2
 
-	echo -n "Running $testName ... "
-
+	printf 'Running %-16s' "$testName ... "
 	local logFile="$LogDir/$testName.log"
 
 	if [ ! -e "$testExecutable" ]; then

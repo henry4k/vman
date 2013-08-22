@@ -54,19 +54,31 @@ int main()
 
     {
         access.lock(VMAN_WRITE_ACCESS);
-
         char* voxel = (char*)access.readWriteVoxelLayer(0,0,0, BASE_LAYER);
-        *voxel = 'X';
+        assert(voxel == NULL); // Because we have just write access, but need read AND write access!
+        access.unlock();
+    }
 
+    {
+        access.lock(VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
+        char* voxel = (char*)access.readWriteVoxelLayer(0,0,0, BASE_LAYER);
+		assert(voxel != NULL);
+        *voxel = 'X';
         access.unlock();
     }
 
     {
         access.lock(VMAN_READ_ACCESS);
-
         const char* voxel = (const char*)access.readVoxelLayer(0,0,0, BASE_LAYER);
+		assert(voxel != NULL);
         assert(*voxel == 'X');
+        access.unlock();
+    }
 
+    {
+        access.lock(VMAN_READ_ACCESS);
+        const char* voxel = (const char*)access.readWriteVoxelLayer(0,0,0, BASE_LAYER);
+        assert(voxel == NULL); // Because we have just read access, but need read AND write access!
         access.unlock();
     }
 

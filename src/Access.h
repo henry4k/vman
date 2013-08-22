@@ -67,14 +67,14 @@ public:
 
     /**
      * @return: Returns a read only pointer to the voxel data in the specified layer.
-     * Will return NULL if the voxel lies outside the selection or
+     * Will return `NULL` if the voxel lies outside the selection or
      * an incomplatible access mode has been selected.
      */
     const void* readVoxelLayer( int x, int y, int z, int layer ) const;
 
     /**
      * @return: Returns a pointer to the voxel data in the specified layer.
-     * Will return NULL if the voxel lies outside the selection or
+     * Will return `NULL` if the voxel lies outside the selection or
      * an incomplatible access mode has been selected.
      * Read operations may yield undefined values if write only is active.
      */
