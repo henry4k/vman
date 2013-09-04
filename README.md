@@ -1,4 +1,6 @@
 # VMAN (Voxel MANager)
+Version 1.0
+
 
 ## Introduction
 
