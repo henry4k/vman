@@ -1,4 +1,7 @@
-#!/bin/bash
+#! /bin/bash
+
+cd $(dirname "$0")
+SourceDir="$PWD"
 
 if [ -t 1 ]; then # test if stdout is a terminal
 	BoldRed='\033[1;31m'
@@ -17,18 +20,6 @@ function Error
 	exit 1
 }
 
-if [ "$#" -lt '2' ]; then
-	echo "Usage: $(basename "$0") <source dir> <log dir>"
-	exit 1
-fi
-
-function AbsPath
-{
-	readlink -f "$1"
-}
-
-SourceDir="$(AbsPath "$1")"
-LogDir="$(AbsPath "$2")"
 
 TempDir="/tmp/vmanTest-$RANDOM"
 mkdir -p "$TempDir"
@@ -45,20 +36,21 @@ function RunTest
 	shift 2
 
 	printf 'Running %-16s' "$testName ... "
-	local logFile="$LogDir/$testName.log"
+	local logFile="$SourceDir/${testName}.log"
 
 	if [ ! -e "$testExecutable" ]; then
 		Error "Can't find '$testExecutable'!."
 	fi
 	
 	rm -rf "$TempDir/*" # Clean up previous garbage
+	ln -fs "$PWD/../src/@VMAN_NAME@" "$TempDir/"
 
 	local old="$PWD"
 	cd "$TempDir"
 	$("$testExecutable" $@ &> "$logFile") # $()-Hack that supresses segfault messages
 	status="$?"
-
 	cd "$old"
+
 	if [ "$status" == '0' ]; then
 		echo -e "${BoldGreen}success${ResetColor}"
 		let SuccessCount++

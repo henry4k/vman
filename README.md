@@ -45,12 +45,18 @@ Stable and nightly builds can be found here: http://vman.henry4k.de/builds
 
 ## Compiling
 
+Using cmake:
 - mkdir build
 - cd build
 - ccmake ..
 - make
 - sudo make install
-:)
+
+Using tup:
+- cp tup.config.sample tup.config
+- nano tup.config
+- tup
+- sudo ./install.sh
 
 
 ## Licence
@@ -63,3 +69,7 @@ O _ o ... not.
 
 ...
 - lol, no
+
+
+## Compiling & Installing
+

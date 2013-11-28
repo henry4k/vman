@@ -1,0 +1,22 @@
+include_rules
+
+CFLAGS += -I../third-party/inih
+CFLAGS += -I../third-party/tinythreadpp/source
+CFLAGS += $(WARNINGS)
+
+CXXFLAGS += --std=c++11
+CXXFLAGS += -fno-rtti -fno-exceptions
+
+: |> !cflags |>
+
+
+: foreach *.cpp |> !cxx |> %B.o {objects}
+
+LDFLAGS += $(INI_A) $(TINYTHREADPP_A)
+ifeq (@(VMAN_SHARED),y)
+#LDFLAGS += -shared -Wl,-soname,@(VMAN_SONAME)
+	LDFLAGS += -shared -Wl,-install_name,@(VMAN_SONAME)
+	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ldcxx |> @(VMAN_NAME)
+else
+	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ar |> @(VMAN_NAME)
+endif

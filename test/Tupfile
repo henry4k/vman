@@ -1,0 +1,16 @@
+include_rules
+
+CFLAGS += -I../src
+CFLAGS += -I../third-party/inih
+CFLAGS += -I../third-party/tinythreadpp/source
+CFLAGS += $(WARNINGS)
+
+: |> !cflags |>
+
+
+: foreach *.cpp |> !cxx |> %B.o
+
+LDFLAGS += $(INI_A) $(TINYTHREADPP_A) $(VMAN_LIB)
+: foreach *.o | $(INI_A) $(TINYTHREADPP_A) $(VMAN_LIB) |> !ldcxx |> %B$(BINARY_POSTFIX)
+
+: runTestSuite.sh.in |> !varsed-script |> runTestSuite.sh
