@@ -1,0 +1,3 @@
+# vim: set filetype=tup:
+
+LD_FLAGS += -shared -Wl,-soname,@(COMPATIBILITY_NAME)

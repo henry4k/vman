@@ -1,4 +1,0 @@
-#! /bin/sh -e
-install 'src/vman.h' '@INSTALL_PREFIX@/include/'
-install 'src/@VMAN_NAME@' '@INSTALL_PREFIX@/lib/'
-ln -s '@INSTALL_PREFIX@/lib/@VMAN_NAME@' '@INSTALL_PREFIX@/lib/@VMAN_SONAME@'

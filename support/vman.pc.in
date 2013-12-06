@@ -1,0 +1,12 @@
+prefix=@INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: vman
+Description: volume manager
+Version: @VMAN_VERSION@
+URL: https://github.com/henry4k/vman
+
+Libs: -L${libdir} -l@VMAN_NAME@
+Cflags: -I${includedir}

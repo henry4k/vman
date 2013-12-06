@@ -1,56 +1,12 @@
 # vim: set filetype=tup:
 
-.gitignore
-
-
-### Tools ###
-
-ifdef CC
-  CC = @(CC)
-else
-  CC = cc
-endif
-
-ifdef CXX
-  CXX = @(CXX)
-else
-  CXX = c++
-endif
-
-
-### Flags ###
-
-CFLAGS += @(CFLAGS)
-ifeq (@(VMAN_SHARED),y)
-	CFLAGS += -fPIC
-endif
-
-WARNINGS += -Werror -Wall -Wextra -pedantic
-WARNINGS += -Wmissing-include-dirs -Wpointer-arith -Wcast-qual -Winit-self
-WARNINGS += -Wno-unknown-pragmas -Wno-variadic-macros -Wno-long-long -Wno-sign-compare -Wno-unused-variable -Wno-unused-parameter -Wno-int-to-void-pointer-cast
-
-CXXFLAGS += @(CXXFLAGS)
-CXXFLAGS += -x c++
-
-LDFLAGS += @(LDFLAGS)
+include support/Tuprules.tup
 
 
 ### Internal dependencies ###
 
 INI_A = $(TUP_CWD)/third-party/inih/ini.a
 TINYTHREADPP_A = $(TUP_CWD)/third-party/tinythreadpp/source/tinythreadpp.a
-VMAN_LIB = $(TUP_CWD)/src/@(VMAN_NAME)
+VMAN_LIB = $(TUP_CWD)/src/@(NAME)
 
 
-### Rules ###
-
-!cc = |> ^o Compling %f^ $(CC) -c %f -o %o $(CFLAGS) |> %B.o
-!ld = |> ^o Linking %o^ ld %f -o %o $(LDFLAGS) |>
-!ar = |> ^o Archiving %o^ ar crs %o %f |>
-!cp = |> ^o Copying %f to %o^ cp %f %o |>
-!varsed = |> ^o Generating %o^ tup varsed %f %o |>
-!varsed-script = |> ^o Generating %o^ tup varsed %f %o && chmod +x %o |>
-!cflags = |> ^o Generating %o^ echo $(CFLAGS) $(CXXFLAGS) > cflags |> cflags
-
-!cxx = |> ^o Compiling %f^ $(CXX) $(CFLAGS) $(CXX_FLAGS) -c %f -o %o |> %B.o
-!ldcxx = |> ^o Linking %o^ $(CXX) %f -o %o $(LDFLAGS) |>

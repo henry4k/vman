@@ -1,0 +1,3 @@
+# vim: set filetype=tup:
+
+LDFLAGS += -dynamiclib -current_version @(VERSION) -compatibility_version @(COMPATIBILITY_VERSION)

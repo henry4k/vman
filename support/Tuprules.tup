@@ -1,0 +1,39 @@
+# vim: set filetype=tup:
+
+.gitignore
+
+
+### Flags ###
+
+CFLAGS += @(CFLAGS)
+ifeq (@(SHARED),y)
+	CFLAGS += -fPIC
+endif
+
+WARNINGS += -Werror -Wall -Wextra -pedantic
+WARNINGS += -Wmissing-include-dirs -Wpointer-arith -Wcast-qual -Winit-self
+WARNINGS += -Wno-unknown-pragmas -Wno-variadic-macros -Wno-long-long -Wno-sign-compare -Wno-unused-variable -Wno-unused-parameter -Wno-int-to-void-pointer-cast
+
+CXXFLAGS += @(CXXFLAGS)
+CXXFLAGS += -x c++
+
+LDFLAGS += @(LDFLAGS)
+
+
+### Rules ###
+
+!cc = |> ^o Compling %f^ @(CC) -c %f -o %o $(CFLAGS) |> %B.o
+!ld = |> ^o Linking %o^ @(CC) %f -o %o $(LDFLAGS) |>
+!ar = |> ^o Archiving %o^ ar crs %o %f |>
+!cp = |> ^o Copying %f to %o^ cp %f %o |>
+!varsed = |> ^o Generating %o^ tup varsed %f %o |>
+!varsed-script = |> ^o Generating %o^ tup varsed %f %o && chmod +x %o |>
+!cflags = |> ^o Generating %o^ echo $(CFLAGS) $(CXXFLAGS) > cflags |> cflags
+
+!cxx = |> ^o Compiling %f^ @(CXX) $(CFLAGS) $(CXX_FLAGS) -c %f -o %o |> %B.o
+!ldcxx = |> ^o Linking %o^ @(CXX) %f -o %o $(LDFLAGS) |>
+
+
+## Platform specific ##
+
+include @(TUP_PLATFORM)/Tuprules.tup

@@ -1,3 +1,0 @@
-include_rules
-
-: install.sh.in |> !varsed-script |> install.sh

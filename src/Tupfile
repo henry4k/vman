@@ -12,11 +12,10 @@ CXXFLAGS += -fno-rtti -fno-exceptions
 
 : foreach *.cpp |> !cxx |> %B.o {objects}
 
+
 LDFLAGS += $(INI_A) $(TINYTHREADPP_A)
-ifeq (@(VMAN_SHARED),y)
-#LDFLAGS += -shared -Wl,-soname,@(VMAN_SONAME)
-	LDFLAGS += -shared -Wl,-install_name,@(VMAN_SONAME)
-	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ldcxx |> @(VMAN_NAME)
+ifeq (@(SHARED),y)
+	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ldcxx |> @(NAME)
 else
-	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ar |> @(VMAN_NAME)
+	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ar |> @(NAME)
 endif

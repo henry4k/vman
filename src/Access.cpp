@@ -123,7 +123,7 @@ bool InsideSelection( const vmanSelection* selection, int x, int y, int z )
 
         (y >= selection->y) &&
         (y <  selection->y + selection->h) &&
-        
+
         (z >= selection->z) &&
         (z <  selection->z + selection->d);
 }
@@ -196,7 +196,7 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
         chunkY-m_ChunkSelection.y,
         chunkZ-m_ChunkSelection.z
     ) ];
-    
+
     // Check if mode includes write access.
     if(mode & VMAN_WRITE_ACCESS)
         chunk->setModified();
@@ -210,9 +210,9 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
             voxelSize*edgeLength,
             voxelSize*edgeLength,
 
-            x - chunkX*edgeLength,
-            y - chunkY*edgeLength,
-            z - chunkZ*edgeLength
+			x % edgeLength,
+			y % edgeLength,
+			z % edgeLength
         )];
     }
     else
@@ -223,9 +223,9 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
             voxelSize*edgeLength,
             voxelSize*edgeLength,
 
-            x - chunkX*edgeLength,
-            y - chunkY*edgeLength,
-            z - chunkZ*edgeLength
+			x % edgeLength,
+			y % edgeLength,
+			z % edgeLength
         )];
     }
 }

@@ -1,0 +1,17 @@
+#! /bin/sh -e
+
+PackageName="$1"
+if [ -z "$PackageName" ]; then
+	echo 'No package name given!'
+	exit 1
+fi
+
+Origin=$(dirname $0)
+
+TempDir="/tmp/vmanPackage-$RANDOM"
+mkdir -p "$TempDir"
+trap "rm -rf $TempDir" EXIT
+
+INSTALL_PREFIX="$TempDir" "$Origin/install.sh"
+
+tar -cvzf "$PackageName" -C "$TempDir" '.'
