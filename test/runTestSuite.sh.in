@@ -39,11 +39,11 @@ function RunTest
 	local logFile="$SourceDir/${testName}.log"
 
 	if [ ! -e "$testExecutable" ]; then
-		Error "Can't find '$testExecutable'!."
+		Error "Can't find '$testExecutable'!"
 	fi
 	
 	rm -rf "$TempDir/*" # Clean up previous garbage
-	ln -fs "$PWD/../src/@VMAN_NAME@" "$TempDir/"
+	ln -fs "$PWD/../src/@NAME@" "$TempDir/"
 
 	local old="$PWD"
 	cd "$TempDir"

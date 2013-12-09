@@ -1,3 +1,4 @@
 # vim: set filetype=tup:
 
-LDFLAGS += -dynamiclib -current_version @(VERSION) -compatibility_version @(COMPATIBILITY_VERSION)
+BINARY_POSTFIX =
+LDFLAGS_SHARED = -dynamiclib -current_version @(VERSION) -compatibility_version @(COMPATIBILITY_VERSION)

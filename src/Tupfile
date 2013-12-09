@@ -15,7 +15,7 @@ CXXFLAGS += -fno-rtti -fno-exceptions
 
 LDFLAGS += $(INI_A) $(TINYTHREADPP_A)
 ifeq (@(SHARED),y)
-	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ldcxx |> @(NAME)
+	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ldcxx-shared |> @(NAME)
 else
 	: {objects} | $(INI_A) $(TINYTHREADPP_A) |> !ar |> @(NAME)
 endif

@@ -24,6 +24,7 @@ LDFLAGS += @(LDFLAGS)
 
 !cc = |> ^o Compling %f^ @(CC) -c %f -o %o $(CFLAGS) |> %B.o
 !ld = |> ^o Linking %o^ @(CC) %f -o %o $(LDFLAGS) |>
+!ld-shared = |> ^o Linking %o^ @(CC) %f -o %o $(LDFLAGS) $(LDFLAGS_SHARED) |>
 !ar = |> ^o Archiving %o^ ar crs %o %f |>
 !cp = |> ^o Copying %f to %o^ cp %f %o |>
 !varsed = |> ^o Generating %o^ tup varsed %f %o |>
@@ -32,6 +33,7 @@ LDFLAGS += @(LDFLAGS)
 
 !cxx = |> ^o Compiling %f^ @(CXX) $(CFLAGS) $(CXX_FLAGS) -c %f -o %o |> %B.o
 !ldcxx = |> ^o Linking %o^ @(CXX) %f -o %o $(LDFLAGS) |>
+!ldcxx-shared = |> ^o Linking %o^ @(CXX) %f -o %o $(LDFLAGS) $(LDFLAGS_SHARED) |>
 
 
 ## Platform specific ##
