@@ -1,0 +1,12 @@
+# vim: set filetype=tup:
+
+include support/Tuprules.tup
+
+
+### Internal dependencies ###
+
+INI_A = $(TUP_CWD)/third-party/inih/ini.a
+TINYTHREADPP_A = $(TUP_CWD)/third-party/tinythreadpp/source/tinythreadpp.a
+VMAN_LIB = $(TUP_CWD)/src/@(NAME)
+
+

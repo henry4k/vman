@@ -1,0 +1,4 @@
+# vim: set filetype=tup:
+
+BINARY_POSTFIX =
+LDFLAGS_SHARED = -shared -Wl,-soname,@(COMPATIBILITY_NAME)

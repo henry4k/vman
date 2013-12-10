@@ -14,8 +14,8 @@
         #define __WINDOWS__
     #endif
 
-	#undef FILE_TYPE_UNKNOWN
-	// ^- tinythread has to include windows.h
+    #undef FILE_TYPE_UNKNOWN
+    // ^- tinythread has to include windows.h
 #endif
 
 

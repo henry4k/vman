@@ -210,9 +210,9 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
             voxelSize*edgeLength,
             voxelSize*edgeLength,
 
-            x - chunkX*edgeLength,
-            y - chunkY*edgeLength,
-            z - chunkZ*edgeLength
+            x % edgeLength,
+            y % edgeLength,
+            z % edgeLength
         )];
     }
     else
@@ -223,9 +223,9 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
             voxelSize*edgeLength,
             voxelSize*edgeLength,
 
-            x - chunkX*edgeLength,
-            y - chunkY*edgeLength,
-            z - chunkZ*edgeLength
+            x % edgeLength,
+            y % edgeLength,
+            z % edgeLength
         )];
     }
 }

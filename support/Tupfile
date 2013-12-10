@@ -1,0 +1,5 @@
+include_rules
+
+: vman.pc.in |> !varsed |> vman.pc
+: install.sh.in |> !varsed-script |> install.sh
+: package.sh.in |> !varsed-script |> package.sh

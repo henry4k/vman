@@ -1,0 +1,4 @@
+# vim: set filetype=tup:
+
+BINARY_POSTFIX = .exe
+LDFLAGS_SHARED = -shared -Wl,-soname,@(COMPATIBILITY_NAME)

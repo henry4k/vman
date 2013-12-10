@@ -1,0 +1,20 @@
+#! /bin/sh -e
+
+Origin=$(dirname $0)
+
+if [ -n "$INSTALL_PREFIX" ]; then
+    Prefix="$INSTALL_PREFIX"
+else
+    Prefix='@INSTALL_PREFIX@'
+fi
+
+mkdir -p "$Prefix/include"
+mkdir -p "$Prefix/lib"
+mkdir -p "$Prefix/lib/pkgconfig"
+
+install -Cv "$Origin/../src/vman.h" "$Prefix/include/"
+install -Cv "$Origin/../src/@NAME@" "$Prefix/lib/"
+install -Cv "$Origin/vman.pc" "$Prefix/lib/pkgconfig/"
+
+cd "$Prefix/lib"
+ln -vfs "@NAME@" "@COMPATIBILITY_NAME@"

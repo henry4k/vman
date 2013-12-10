@@ -7,38 +7,37 @@ Beschreibung:
 
 Brainstorming:
     - KÃ¼mmert sich um das Laden und Speichern von Voxeln (=> Chunks).
-    - Voxel haben mehrere Datenlayer, welche im Ausgangszustand keinen Speicher einnehmen, sondern von einem Default-Wert reprÃ¤sentiert werden.
-    - Von aussen hat man nur Zugriff auf Voxel-Ebene, die Chunks und Threads sind nur intern verfÃ¼gbar.
-    - C-Interface um die Bibliothek leichter in anderen Sprachen einbindne zu kÃ¶nnen.
-    - Die Anwendung kann mit primitiven Objekten der Bibliothek sagen welche Voxel fÃ¼r sie gerade interessant sind, bzw welche bald interessant werden kÃ¶nnten.
-    - Frisch geladene Chunks, sowie Chunks welcher lÃ¤nger nicht mehr geÃ¤ndert wurden, werden komprimiert im Speicher gehalten.
-        - D.h. beim Laden kÃ¶nnten die komprimierten Voxel 1:1 im RAM landen.
+    - Voxel haben mehrere Datenlayer, welche im Ausgangszustand keinen Speicher einnehmen, sondern von einem Default-Wert repräsentiert werden.
+    - Von aussen hat man nur Zugriff auf Voxel-Ebene, die Chunks und Threads sind nur intern verfügbar.
+    - C-Interface um die Bibliothek leichter in anderen Sprachen einbinden zu können.
+    - Die Anwendung kann mit primitiven Objekten der Bibliothek sagen welche Voxel für sie gerade interessant sind, bzw welche bald interessant werden könnten.
+    - Frisch geladene Chunks, sowie Chunks welcher länger nicht mehr geändert wurden, werden komprimiert im Speicher gehalten.
+        - D.h. beim Laden könnten die komprimierten Voxel 1:1 im RAM landen.
     - Das Laden/Entladen passiert in Threads.
-    - Die Applikation kann Events bzw Callbacks in der Bibliothek registrieren um Ã¼ber Block-Ã„nderungen u.Ã„. informiert zu werden.
-    - Die Applikation kann auch zusÃ¤tzliche Daten fÃ¼r z.B. Tile-Entities verwalten lassen.
+    - Die Applikation kann Events bzw Callbacks in der Bibliothek registrieren um Über Block-Änderungen u.Ä. informiert zu werden.
+    - Die Applikation kann auch zusätzliche Daten für z.B. Tile-Entities verwalten lassen.
         - Diese werden dann z.B. im entsprechenden Chunk gespeichert.
 
 Layer:
     Haben einen Namen und einen Versionsstring.
-    Innerhalb der Anwendung werden sie Ã¼ber einen Index angesprochen.
-
+    Innerhalb der Anwendung werden sie Über einen Index angesprochen.
 
 
 
 
 
 Chunks laden, wenn:
-- Ein Access-Objekt diese benÃ¶tigt
-- Ein Pre-Load diese benÃ¶tigt
+- Ein Access-Objekt diese benötigt
+- Ein Pre-Load diese benötigt
 
 Chunks entladen, wenn:
 - Wenn sie seit einer bestimmten Zeit nicht mehr verwendet wurden.
 
-Zu ladene Chunks sollten nach PrioritÃ¤t sortiert werden.
-Preload- und Access-Objekte haben eine PrioritÃ¤t und priorisieren auch ihre Chunks.
-Z.B. dass die innenliegenden Chunks eines Volumes eine hÃ¶here PrioritÃ¤t als die aussenliegenden haben.
+Zu ladene Chunks sollten nach Priorität sortiert werden.
+Preload- und Access-Objekte haben eine Priorität und priorisieren auch ihre Chunks.
+Z.B. dass die innenliegenden Chunks einer Selection eine höhere Priorität als die Aussenliegenden haben.
 
-Ein World Objekt hat einen Thread-Pool fÃ¼r RW-Jobs. R- und W-Jobs sollen gleichmÃ¤ÃŸig abgearbeitet werden.
+Ein Volume Objekt hat einen Thread-Pool für RW-Jobs. R- und W-Jobs sollen gleichmäßig abgearbeitet werden.
 Mutex rwJobMutex;
 Condition newRWJobCondition;
 Thread[] rwJobThreadPool;
@@ -74,20 +73,20 @@ und soooh
 -
 
 Fragt sich, ob das mit der "anteilsweisen Verwendung" so gut ist.
-Das wÃ¼rde primÃ¤r genutzt werden um Chunks, die statistisch oft verwendet werden,
-lÃ¤nger im Speicher zu halten.
+Das würde primÃ¤r genutzt werden um Chunks, die statistisch oft verwendet werden,
+länger im Speicher zu halten.
 Wenn man nun aber die Chunks zu jemanden kopiert der die so garnicht verwendet ...?
 Erstmal weglassen. Kann man nacher ja immernoch gut einbauen. :)
 
 
 
 
-Array-Funktionen fÃ¼r das Access-Objekt:
+Array-Funktionen für das Access-Objekt:
 
 readVoxel( x, y, z, layer );
-readVoxels( volume, callback, context );
+readVoxels( selection, callback, context );
 
-void VoxelArrayRead( volume, const layers, context );
+void VoxelArrayRead( selection, const layers, context );
 
 
 
@@ -98,20 +97,20 @@ void VoxelArrayRead( volume, const layers, context );
 Manager
     const staticManager
         Layer Definitionen
-        Chunk KantenlÃ¤nge
-        BaseDir
+        Chunk Kantenlänge
 
-    getWorld( int id )
+    getVolume( int id )
 
     Job-System
         ...
 
     Scheduling-System
-        scheduleTask( World*, Chunk*, TaskId, ... )
+        scheduleTask( Volume*, Chunk*, TaskId, ... )
 
     log-fn <- Thread-Safe
 
-World
+Volume
+    BaseDir
     map<ChunkId, Chunk>
     getChunks
 
@@ -119,6 +118,13 @@ Chunk
     releaseReference -> Locks Manager :I
     setModified -> Locks Manager :I
         Beides wegen scheduleTask()
+
+
+
+
+Manager:
+    Layer Definitionen
+    Chunk Kantenlänge
 
 
 
@@ -135,12 +141,12 @@ Policy:
 Chunk:
     benutzt scheduleTask (scheduledTasks-Liste)
 
-World:
+Volume:
     benutzt Chunks
 
 Access:
     benutzt Chunks
-    benutzt World
+    benutzt Volume
 
 
 
@@ -149,16 +155,16 @@ Access:
 
 
 Es darf von jedem Task pro Chunk nur einen geben.
-Save darf nicht nach Unload kommen, in dem Fall mÃ¼sste Save mit Unload ausgefÃ¼hrt werden.
+Save darf nicht nach Unload kommen, in dem Fall mÃ¼sste Save mit Unload ausgeführt werden.
 
 Meh.. das System hinkt an jeder Ecke.
 
 
 v1:
     Bei entsprechenden Ereignissen wird ein Task in einen Scheduler eingetragen.
-    Dieser wartet und bearbeitet die Tasks an ihrem FÃ¤lligkeitsdatum.
+    Dieser wartet und bearbeitet die Tasks an ihrem Fälligkeitsdatum.
 
-    + LÃ¤uft nur wenn es etwas zu tun gibt
+    + Läuft nur wenn es etwas zu tun gibt
     - Ist recht komplex, insbesondere da die Tasks bestimmte restriktionen haben.
       (Save darf nicht nach Unload usw.)
 
@@ -168,13 +174,13 @@ v2:
     dieser gespeichert und/oder entladen werden muss.
 
     + Simpel und (deswegen) zuverlÃ¤ssig
-    - Thread lÃ¤uft stÃ¤ndig
+    - Thread läuft ständig
 
 
 v3:
     Mischung aus v1 und v2:
-    Bei entsprechenden Ereignissen wird in einem Scheduler eingetragen, dass der Chunk geprÃ¼ft werden muss.
-    Am FÃ¤lligkeitsdatum schaut der Scheduler im Chunk nach ob dieser entladen und/oder gespeichert werden muss.
+    Bei entsprechenden Ereignissen wird in einem Scheduler eingetragen, dass der Chunk geprüft werden muss.
+    Am Fälligkeitsdatum schaut der Scheduler im Chunk nach ob dieser entladen und/oder gespeichert werden muss.
 
     +- Mal sehen. :)
 
@@ -183,10 +189,10 @@ v3:
 
 Statische Voxel und dynamische Voxel:
 
-Statische Voxel-Layer haben eine feste GrÃ¶ÃŸe, welche sich nicht Ã¤ndert. (ausser man kovertiert sie)
-Bei dynamischen Voxel-Layer kÃ¶nnen die Voxel ihre GrÃ¶ÃŸe zur Laufzeit anpassen.
+Statische Voxel-Layer haben eine feste Größe, welche sich nicht ändert. (ausser man kovertiert sie)
+Bei dynamischen Voxel-Layer können die Voxel ihre Größe zur Laufzeit anpassen.
 
-Voxel Layer enthÃ¤lt Pointer, welche auf die jeweiligen Daten verweisen.
+Voxel Layer enthält Pointer, welche auf die jeweiligen Daten verweisen.
 Offline werden diese als Index-Werte gespeichert, welche auf einen Bereich in einen Daten-Array verweisen.
 
 
@@ -196,12 +202,42 @@ Offline werden diese als Index-Werte gespeichert, welche auf einen Bereich in ei
 
 
 
+bool Access::readVoxelLayerAt(x,y,z,layer,&voxel)
+void* Access::readVoxelLayerAt(x,y,z,layer)
+
+- r/w/rw-Funktionen existieren aktuell nur für einzelne Voxel
+- Operationen:
+    - Chunk-Koordinaten rausfinden
+    - Diverse Sicherheitschecks
+    - ggf. Modified-Flag in Chunks setzen.
+
+- In den meisten Fällen möchte man jedoch auf mehrere Voxel gleichzeitig zugreifen.
+
+Alle Voxel werden kopiert:
+bool Access::readVoxelLayerSelection(selection,layer,&out)
+
+Mit Bit-Maske, welche die zu kopierenden Voxel angibt:
+bool Access::readVoxelLayerSelectionWithMask(selection,layer,&mask,&out) hmm ....
+
+Mit Callback, welches für jeden zusammenhängenden Abschnitt an Voxeln aufgerufen wird:
+void* Access::readVoxelLayerSelection(selection,layer,callback)
+
+void callback( Selection selection, void* data )
+oder
+void callback( int length, void* data )
 
 
 
 
 
 
+
+
+
+
+- Globale und Volume-Spezifische Einstellungen als Key-Value-Paare?
+    - vmanSetInt(manager, "io-threads", 4)
+    - vmanVolumeSetString(volume, "base-directory", "/tmp/foo232")
 
 
 
@@ -243,11 +279,25 @@ Die korrekten Fehlernachrichten werden ohnehin Ã¼ber die Log-Funktion ausgegeben
 Allgemeines Panic-Callback-System, welches einen Mutex und eine verlinkte Liste benutzt.
 
 
+Kompression:
+    Jeder Layer hat eine eigene Kompressionsmethode,
+    weil sich je nach gespeicherten Daten Kompressions-Methoden unterschiedlich gut eignen.
 
-Interface-Klassen fÃ¼r Load/Save-Jobs und Scheduled Tasks
+    Ideen für Kompressionsmethoden:
+        - gzip o.Ä.:
+            Generisch, könnte also allgemein neben differenzierten Methoden angewendet werden.
 
+        - Differenz-Werte:
+            Wie bei PNG werden Differenzwerte aus den Daten gebildet.
+            Eignet sich bei Werten welche sich eher ändern über die Distanz ändern oder größere gleiche Flächen haben.
+            Z.B. Luftdruck (langsame änderung), Material-IDs (größere flächen)
 
+        - Daten beim speichern reduzieren/optimieren:
+            Wenn aus Performance-Gründen auf 32bit Float-Werten gearbeitet wird, könnte man die Daten aber eventuell auch in einem kleineren Format abspeichern.
+            Z.B. statt 32 bit float eben nur 16 oder 8 bit.
+            Das ist bereits mit dem Conversion-Callback möglich.
 
+        - ...
 
 
 Memory-Soft-Cap:
@@ -296,3 +346,12 @@ Volume:
 
     IOJob          m_LastIOJob;
     ConVar         m_LastIOJobDone;
+
+
+API darf nichts über die zugrunde liegende Storage-Engine preisgeben.
+D.h. die Options-Namen müssen als String übergeben werden.
+
+Beispiele für Storage-Engines:
+    - Chunk-Basierte Lösung
+    - Remote (d.h. da läuft iwo ein vman-server mit welchem über tcp kommuniziert wird)
+    - Occtree (Hm.. ja .. wer weiss ^^)

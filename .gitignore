@@ -1,5 +1,13 @@
+## Temporary files ##
 /build
 /doc
 *.swp
+
+## Local files ##
+*.log
+/tup.config
+/.tup
+
+## System files ##
 .directory
 *.DS_Store
