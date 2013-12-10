@@ -18,9 +18,7 @@ namespace vman
 {
 
 
-class Access;
-
-
+/*
 enum Statistic
 {
     STATISTIC_CHUNK_GET_HITS = 0,
@@ -29,16 +27,17 @@ enum Statistic
     STATISTIC_CHUNK_LOAD_OPS,
     STATISTIC_CHUNK_SAVE_OPS,
     STATISTIC_CHUNK_UNLOAD_OPS,
-    
+
     STATISTIC_READ_OPS,
     STATISTIC_WRITE_OPS,
-    
+
     STATISTIC_MAX_LOADED_CHUNKS,
     STATISTIC_MAX_SCHEDULED_CHECKS,
     STATISTIC_MAX_ENQUEUED_JOBS,
 
     STATISTIC_COUNT
 };
+*/
 
 
 class Volume
@@ -47,29 +46,14 @@ public:
     /**
      * @see vmanVolumeParameters
      */
-    Volume( const vmanVolumeParameters* parameters );
+    Volume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir );
     ~Volume();
-
-
-    /**
-     * Is thread safe.
-     * @return The edge length of the chunks cube.
-     */
-    int getChunkEdgeLength() const;
-
-    /**
-     * Is thread safe.
-     * @return The amount of voxels a chunk contains.
-     * `edgeLength^3`
-     */
-    int getVoxelsPerChunk() const;
 
     /**
      * Is thread safe.
      * @return The maximum size a voxel may occupy.
      */
     int getMaxLayerVoxelSize() const;
-
 
     /**
      * Is thread safe.
@@ -91,6 +75,19 @@ public:
      * @return The layers index or `-1` on failure.
      */
     int getLayerIndexByName( const char* name ) const;
+
+    /**
+     * Is thread safe.
+     * @return The edge length of the chunks cube.
+     */
+    int getChunkEdgeLength() const;
+
+    /**
+     * Is thread safe.
+     * @return The amount of voxels a chunk contains.
+     * `edgeLength^3`
+     */
+    int getVoxelsPerChunk() const;
 
 
     /**
@@ -148,30 +145,14 @@ public:
      */
     void getSelection( const vmanSelection* chunkSelection, Chunk** chunksOut, int priority );
 
-
     /**
-     * Timeout after that unreferenced chunks are unloaded.
-     * Negative values disable this behaviour.
+     * Checks if a chunk should be saved or unloaded and runs these actions.
+     * Note that this function uses the chunks mutex.
+     * Is thread safe.
+     * @return `true` if the chunk was deleted.
      */
-    void setUnusedChunkTimeout( int seconds );
+    bool checkChunk( ChunkId chunkId );
 
-    /**
-     * Timeout after that unreferenced chunks are unloaded.
-     * @return Timeout or `-1` if disabled.
-     */
-    int getUnusedChunkTimeout() const;
-
-    /**
-     * Timeout after that modified chunks are saved to disk.
-     * Negative values disable this behaviour.
-     */
-    void setModifiedChunkTimeout( int seconds );
-
-    /**
-     * Timeout after that modified chunks are saved to disk.
-     * @return Timeout or `-1` if disabled.
-     */
-    int getModifiedChunkTimeout() const;
 
     /**
      * Writes all modified chunks to disk.
@@ -184,24 +165,8 @@ public:
      */
     // void unloadUnusedChunks(); // TODO
 
-
-    enum CheckCause
-    {
-        CHECK_CAUSE_UNUSED,
-        CHECK_CAUSE_MODIFIED
-    };
-
     /**
-     * Schedules tasks that will be run in the future.
-     * `scheduled_time = now + wait_duration`
-     * While the duration is defined by the tasks type.
-     * E.g. for the `CHECK_CAUSE_UNUSED` it uses getUnusedChunkTimeout().
-     */
-    void scheduleCheck( CheckCause cause, Chunk* chunk );
-
-
-    /**
-     * For logging vman specific messages.
+     * For logging volume specific messages.
      * Is thread safe.
      */
     void log( vmanLogLevel level, const char* format, ... ) const;
@@ -211,35 +176,35 @@ public:
      * Resets all statistics to zero.
      * Is thread safe.
      */
-    void resetStatistics();
+    //void resetStatistics();
 
 
     /**
      * Increments a statistic.
      * Is thread safe.
      */
-    void incStatistic( Statistic statistic, int amount = 1 );
+    //void incStatistic( Statistic statistic, int amount = 1 );
 
 
     /**
      * Decrements a statistic.
      * Is thread safe.
      */
-    void decStatistic( Statistic statistic, int amount = 1 );
+    //void decStatistic( Statistic statistic, int amount = 1 );
 
 
     /**
      * Sets the value if its greater than the current one.
      * Is thread safe.
      */
-    void minStatistic( Statistic statistic, int value );
+    //void minStatistic( Statistic statistic, int value );
 
 
     /**
      * Sets the value if its lower than the current one.
      * Is thread safe.
      */
-    void maxStatistic( Statistic statistic, int value );
+    //void maxStatistic( Statistic statistic, int value );
 
 
     /**
@@ -247,7 +212,7 @@ public:
      * @param statisticsDestination Statistics are written to this structure.
      * @return whether the operation succeeded. May return `false` even if statistics were enabled.
      */
-    bool getStatistics( vmanStatistics* statisticsDestination ) const;
+    //bool getStatistics( vmanStatistics* statisticsDestination ) const;
 
 
     /**
@@ -257,20 +222,9 @@ public:
     tthread::mutex* getMutex();
 
 
-    /**
-     * Call this function on abnormal or abprupt program termination.
-     */
-    static void PanicExit();
-    
-
 private:
     Volume( const Volume& volume );
     Volume& operator = ( const Volume& volume );
-
-    static tthread::mutex   s_PanicMutex;
-    static std::set<Volume*> s_PanicVolumeSet;
-    
-    void panicExit();
 
 
     bool chunkFileExists( int chunkX, int chunkY, int chunkZ );
@@ -294,98 +248,15 @@ private:
     Chunk* getLoadedChunkById( ChunkId id );
 
 
-    /**
-     * Checks if a chunk should be saved or unloaded and runs these actions.
-     * Note that this function uses the chunks mutex.
-     * @return `true` if the chunk was deleted.
-     */
-    bool checkChunk( Chunk* chunk );
-
-
     std::vector<vmanLayer> m_Layers;
     int m_MaxLayerVoxelSize;
+
     int m_ChunkEdgeLength;
 
     std::map<ChunkId,Chunk*> m_ChunkMap; // Dimension
     std::string m_BaseDir;
 
     mutable tthread::mutex m_Mutex;
-
-
-	void (*m_LogFn)( vmanLogLevel level, const char* message );
-    mutable tthread::mutex m_LogMutex;
-
-
-    // --- Statistics ---
-    
-    bool m_StatisticsEnabled; // thread safe (is only set in the constructor)
-    tthread::atomic_int m_Statistics[STATISTIC_COUNT];
-
-
-    // --- Scheduled Checks ---
-
-    int m_UnusedChunkTimeout;
-    int m_ModifiedChunkTimeout;
-
-    struct ScheduledCheck
-    {
-        time_t executionTime;
-        ChunkId chunkId;
-    };
-
-    /**
-     * Internal version of `scheduleCheck` with time parameter.
-     * Don't use this directly.
-     */
-    void scheduleCheck( Chunk* chunk, double seconds );
-
-    /**
-     * This list needs its own mutex,
-     * because its heavily used by the chunks.
-     */
-    std::list<ScheduledCheck> m_ScheduledChecks;
-    
-    mutable tthread::mutex m_ScheduledChecksMutex;
-    
-    tthread::condition_variable m_SchedulerReevaluateCondition;
-    tthread::thread* m_SchedulerThread;
-
-    tthread::atomic_int m_StopSchedulerThread;
-
-    static void SchedulerThreadWrapper( void* volumeInstance );
-    void schedulerThreadFn();
-
-
-    // --- Load/Save Jobs ---
-
-    tthread::condition_variable m_NewJobCondition;
-
-    /**
-     * Tries to find a job with the given chunk id.
-     * Returns the .end()-iterator if none has been found.
-     */
-    std::list<JobEntry>::iterator findJobByChunk( Chunk* chunk );
-
-    /**
-     * Adds a job to the job queue.
-     * May eventually merge it with another job.
-     */
-    void addJob( JobType type, int priority, Chunk* chunk );
-
-    /**
-     * Finds a suitable job, removes it from the job list and returns it.
-     */
-    JobEntry getJob();
-
-    mutable tthread::mutex m_JobListMutex;
-    std::list<JobEntry> m_JobList;
-    int m_ActiveLoadJobs;
-    int m_ActiveSaveJobs;
-
-    std::vector<tthread::thread*> m_JobThreads;
-    tthread::atomic_int m_StopJobThreads;
-    static void JobThreadWrapper(void* volumeInstance);
-    void jobThreadFn();
 };
 
 }

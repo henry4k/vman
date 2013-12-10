@@ -1,7 +1,7 @@
 #include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include "vman.h"
+#include "Manager.h"
 #include "Volume.h"
 #include "Access.h"
 
@@ -11,19 +11,34 @@
 */
 
 
+bool vmanInit( vmanLogFn logFn, bool enableStatistics )
+{
+    return vman::Manager::Init(logFn, enableStatistics);
+}
+
+void vmanDeinit()
+{
+    vman::Manager::Deinit();
+}
+
+void vmanSetUnusedChunkTimeout( int seconds )
+{
+    vman::Manager::Singleton()->setUnusedChunkTimeout(seconds);
+}
+
+void vmanSetModifiedChunkTimeout( int seconds )
+{
+    vman::Manager::Singleton()->setModifiedChunkTimeout(seconds);
+}
+
 void vmanPanicExit()
 {
-    vman::Volume::PanicExit();
+    vman::Manager::PanicExit();
 }
 
-void vmanInitVolumeParameters( vmanVolumeParameters* parameters )
+vmanVolume vmanCreateVolume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir )
 {
-    memset(parameters, 0, sizeof(vmanVolumeParameters));
-}
-
-vmanVolume vmanCreateVolume( const vmanVolumeParameters* parameters )
-{
-    return (vmanVolume)new vman::Volume(parameters);
+    return (vmanVolume)new vman::Volume(layers, layerCount, chunkEdgeLength, baseDir);
 }
 
 void vmanDeleteVolume( const vmanVolume volume )
@@ -32,28 +47,17 @@ void vmanDeleteVolume( const vmanVolume volume )
     delete (const vman::Volume*)volume;
 }
 
-void vmanSetUnusedChunkTimeout( const vmanVolume volume, int seconds )
-{
-    assert(volume != NULL);
-    ((vman::Volume*)volume)->setUnusedChunkTimeout(seconds);
-}
-
-void vmanSetModifiedChunkTimeout( const vmanVolume volume, int seconds )
-{
-    assert(volume != NULL);
-    ((vman::Volume*)volume)->setModifiedChunkTimeout(seconds);
-}
-
 void vmanResetStatistics( const vmanVolume volume )
 {
     assert(volume != NULL);
-    ((vman::Volume*)volume)->resetStatistics();
+    //((vman::Volume*)volume)->resetStatistics();
 }
 
 bool vmanGetStatistics( const vmanVolume volume, vmanStatistics* statisticsDestination )
 {
     assert(volume != NULL);
-    return ((vman::Volume*)volume)->getStatistics(statisticsDestination);
+    //return ((vman::Volume*)volume)->getStatistics(statisticsDestination);
+    return false;
 }
 
 vmanAccess vmanCreateAccess( const vmanVolume volume )

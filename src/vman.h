@@ -36,27 +36,12 @@ extern "C"
 #endif
 
 
-// -- Status --
-
-typedef enum
-{
-    VMAN_NO_ERROR = 0,
-    VMAN_OUT_OF_MEMORY
-} vmanError;
-
-VMAN_API int vmanGetError();
-
-
-/**
- * Call this function on abnormal or abprupt program termination.
- */
-VMAN_API void vmanPanicExit();
-
-
 enum
 {
     VMAN_MAX_LAYER_NAME_LENGTH = 31
 };
+
+
 
 // -- Layer --
 
@@ -67,12 +52,12 @@ typedef struct
      * May use up to VMAN_MAX_LAYER_NAME_LENGTH characters.
      */
     const char* name;
-    
+
     /**
      * Bytes single voxel of this layer occupies.
      */
     int voxelSize;
-    
+
     /**
      * Revision number 
      */
@@ -96,13 +81,14 @@ typedef struct
 } vmanLayer;
 
 
+
 // -- Statistics --
 
 typedef struct
 {
     int chunkGetHits;
     int chunkGetMisses;
-    
+
     int chunkLoadOps;
     int chunkSaveOps;
     int chunkUnloadOps;
@@ -116,7 +102,8 @@ typedef struct
 } vmanStatistics;
 
 
-// -- Volume --
+
+// -- Manager --
 
 typedef enum
 {
@@ -126,80 +113,79 @@ typedef enum
     VMAN_LOG_ERROR
 } vmanLogLevel;
 
-typedef struct
-{
-    /**
-     * Array that describes the data layers available to each voxel.
-     */
-    const vmanLayer* layers;
-
-    /**
-     * Amount of elements stored in `layers`.
-     */
-    int layerCount;
-
-    /**
-     * Defines the selection used for the internal chunks.
-     * Don't change this later on!
-     */
-    int chunkEdgeLength;
-
-    /**
-     * Chunks are stored here.
-     * May be `NULL`, then nothing is saved to disk.
-     */
-    const char* baseDir;
-
-    /**
-     * Whether statistics should be enabled.
-     */
-    bool enableStatistics;
-
-    /**
-     * Callback for log messages.
-     * If `NULL` vman uses its internal logging function.
-     */
-    void (*logFn)( vmanLogLevel level, const char* message );
-
-} vmanVolumeParameters;
-
+typedef void (*vmanLogFn)( vmanLogLevel level, const char* message );
 
 /**
- * Initializes a volume parameter structure.
+ * Creates a new manager object.
+ *
+ * @param logFn
+ *     Callback for log messages.
+ *     If `NULL` vman uses its internal logging function.
+ *
+ * @param enableStatistics
+ *      Whether statistics should be enabled.
+ *
+ * @return
+ *      `true` if successfull.
  */
-VMAN_API void vmanInitVolumeParameters( vmanVolumeParameters* parameters );
+VMAN_API bool vmanInit( vmanLogFn logFn, bool enableStatistics );
+
+/**
+ * Deletes the given manager object.
+ * The manager may not have any volumes at this time!
+ */
+VMAN_API void vmanDeinit();
+
+/**
+ * Timeout after that unreferenced chunks are unloaded.
+ * Negative values disable this behaviour.
+ */
+VMAN_API void vmanSetUnusedChunkTimeout( int seconds );
+
+/**
+ * Timeout after that modified chunks are saved to disk.
+ * Negative values disable this behaviour.
+ */
+VMAN_API void vmanSetModifiedChunkTimeout( int seconds );
+
+/**
+ * Call this function on abnormal or abprupt program termination.
+ */
+VMAN_API void vmanPanicExit();
 
 
+
+// -- Volume --
 
 typedef void* vmanVolume;
 
-
 /**
  * Creates a new volume object.
- * @param parameters Parameter structure. Should be initialized using vmanInitVolumeParameters before.
- * @return `NULL` when something went wrong.
+ *
+ * @param layers
+ *      Array that describes the data layers available to each voxel.
+ *
+ * @param layerCount
+ *      Amount of elements stored in `layers`.
+ *
+ * @param chunkEdgeLength
+ *      Defines the size used for the internal chunks.
+ *      Don't change this later on!
+ *
+ * @param baseDir
+ *      Chunks are stored here.
+ *      May be `NULL`, then nothing is saved to disk.
+ *
+ * @return
+ *      `NULL` when something went wrong.
  */
-VMAN_API vmanVolume vmanCreateVolume( const vmanVolumeParameters* parameters );
+VMAN_API vmanVolume vmanCreateVolume( const vmanLayer* layers, int layerCount, int chunkEdgeLength, const char* baseDir );
 
 
 /**
  * Deletes the given volume object and all its allocated resources.
  */
 VMAN_API void vmanDeleteVolume( const vmanVolume volume );
-
-
-/**
- * Timeout after that unreferenced chunks are unloaded.
- * Negative values disable this behaviour.
- */
-VMAN_API void vmanSetUnusedChunkTimeout( const vmanVolume volume, int seconds );
-
-
-/**
- * Timeout after that modified chunks are saved to disk.
- * Negative values disable this behaviour.
- */
-VMAN_API void vmanSetModifiedChunkTimeout( const vmanVolume volume, int seconds );
 
 
 /**
@@ -216,6 +202,7 @@ VMAN_API void vmanResetStatistics( const vmanVolume volume );
 VMAN_API bool vmanGetStatistics( const vmanVolume volume, vmanStatistics* statisticsDestination );
 
 
+
 // -- Selection --
 
 typedef struct
@@ -223,6 +210,7 @@ typedef struct
     int x, y, z;
     int w, h, d;
 } vmanSelection;
+
 
 
 // -- Access --

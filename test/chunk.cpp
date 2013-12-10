@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <Manager.h>
 #include <Volume.h>
 #include <Chunk.h>
 
@@ -28,14 +29,9 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-	vmanVolumeParameters volumeParams;
-	vmanInitVolumeParameters(&volumeParams);
-	volumeParams.layers = layers;
-	volumeParams.layerCount = LAYER_COUNT;
-	volumeParams.chunkEdgeLength = CHUNK_EDGE_LENGTH;
-	volumeParams.baseDir = ".";
-    Volume volume(&volumeParams);
-    
+    Manager::Init(NULL, false);
+    Volume volume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
+
     {
         Chunk chunk(&volume, 1,2,3);
         char* material = (char*)chunk.getLayer(0);
@@ -45,7 +41,7 @@ int main()
         bool success = chunk.saveToFile();
         assert(success);
     }
-    
+
     {
         Chunk chunk(&volume, 1,2,3);
         bool success = chunk.loadFromFile();
@@ -62,6 +58,7 @@ int main()
         assert(success == false);
     }
 
+    Manager::Deinit();
     puts("No problems detected.");
 
     return 0;

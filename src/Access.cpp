@@ -123,21 +123,21 @@ bool InsideSelection( const vmanSelection* selection, int x, int y, int z )
 
         (y >= selection->y) &&
         (y <  selection->y + selection->h) &&
-        
+
         (z >= selection->z) &&
         (z <  selection->z + selection->d);
 }
 
 const void* Access::readVoxelLayer( int x, int y, int z, int layer ) const
 {
-    m_Volume->incStatistic(STATISTIC_READ_OPS);
+    //m_Volume->incStatistic(STATISTIC_READ_OPS);
     return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS);
 }
 
 void* Access::readWriteVoxelLayer( int x, int y, int z, int layer ) const
 {
-    m_Volume->incStatistic(STATISTIC_READ_OPS);
-    m_Volume->incStatistic(STATISTIC_WRITE_OPS);
+    //m_Volume->incStatistic(STATISTIC_READ_OPS);
+    //m_Volume->incStatistic(STATISTIC_WRITE_OPS);
     return getVoxelLayer(x,y,z, layer, VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
 }
 
@@ -196,7 +196,7 @@ void* Access::getVoxelLayer( int x, int y, int z, int layer, int mode ) const
         chunkY-m_ChunkSelection.y,
         chunkZ-m_ChunkSelection.z
     ) ];
-    
+
     // Check if mode includes write access.
     if(mode & VMAN_WRITE_ACCESS)
         chunk->setModified();

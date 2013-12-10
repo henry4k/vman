@@ -21,12 +21,12 @@ int Random( int min, int max )
 
 float Random( float max )
 {
-	return (double(rand()) / (double(RAND_MAX) / max));
+    return (double(rand()) / (double(RAND_MAX) / max));
 }
 
 float Random( float min, float max )
 {
-	return min + Random(max-min);
+    return min + Random(max-min);
 }
 
 struct Configuration
@@ -40,11 +40,11 @@ struct Configuration
     int maxSelectionDistance;
     int maxSelectionSize;
 
-	float minWait;
-	float maxWait;
+    float minWait;
+    float maxWait;
 
-	float secondsPerStatisticSample;
-	std::string statisticsFile;
+    float secondsPerStatisticSample;
+    std::string statisticsFile;
 };
 
 
@@ -88,9 +88,9 @@ void BenchmarkerThread( void* context )
 
         vmanUnlockAccess(access);
 
-		const float waitTime = Random(config->minWait, config->maxWait);
-		if(waitTime > 0.0f)
-			tthread::this_thread::sleep_for( tthread::chrono::milliseconds(waitTime*1000) );
+        const float waitTime = Random(config->minWait, config->maxWait);
+        if(waitTime > 0.0f)
+            tthread::this_thread::sleep_for( tthread::chrono::milliseconds(waitTime*1000) );
     }
 
     vmanDeleteAccess(access);
@@ -149,122 +149,139 @@ void DestroyLayers( vmanLayer* layers, int count )
 
 std::map<std::string, std::string> g_ConfigValues;
 
+void ReadConfigFile( const char* file );
+
 int IniEntryCallback( void* user, const char* section, const char* name, const char* value )
 {
-	using namespace std;
+    using namespace std;
 
-	string key;
-	if(section == NULL)
-		key = string(name);
-	else
-		key = string(section) + string(".") + string(name);
+    string key;
+    if(section == NULL)
+        key = string(name);
+    else
+        key = string(section) + string(".") + string(name);
 
-	printf("%s = %s\n", key.c_str(), value);
-	g_ConfigValues[key] = value;
-	return 1;
+    if(section == NULL && key == "include")
+    {
+        ReadConfigFile(value);
+    }
+    else
+    {
+        printf("%s = %s\n", key.c_str(), value);
+        g_ConfigValues[key] = value;
+    }
+    return 1;
+}
+
+void ReadConfigFile( const char* file )
+{
+    printf("Reading config file %s ..\n", file);
+    ini_parse(file, IniEntryCallback, NULL);
 }
 
 void ReadConfigValues( const int argc, char** argv )
 {
-	for(int i = 1; i < argc; ++i)
-	{
-		const std::string arg = argv[i];
-		// --key=value
-		
-		if(
-			arg.size() < 2 ||
-			arg[0] != '-' ||
-			arg[1] != '-'
-		)
-		{
-			printf("Bad argument '%s'\n", arg.c_str());
-			break;
-		}
+    for(int i = 1; i < argc; ++i)
+    {
+        const std::string arg = argv[i];
+        // --key=value
 
-		const size_t equalsPos = arg.find('=');
+        if(
+            arg.size() < 2 ||
+            arg[0] != '-' ||
+            arg[1] != '-'
+        )
+        {
+            printf("Bad argument '%s'\n", arg.c_str());
+            break;
+        }
 
-		if(equalsPos == std::string::npos)
-		{
-			printf("Bad argument '%s'\n", arg.c_str());
-			break;
-		}
+        const size_t equalsPos = arg.find('=');
 
-		std::string key   = arg.substr(2, equalsPos-2);
-		std::string value = arg.substr(equalsPos+1);
+        if(equalsPos == std::string::npos)
+        {
+            printf("Bad argument '%s'\n", arg.c_str());
+            break;
+        }
 
-		if(key == "config")
-		{
-			printf("Reading config file %s ..\n", value.c_str());
-			ini_parse(value.c_str(), IniEntryCallback, NULL);
-		}
-		else
-		{
-			printf("%s = %s\n", key.c_str(), value.c_str());
-			g_ConfigValues[key] = value;
-		}
-	}
+        std::string key   = arg.substr(2, equalsPos-2);
+        std::string value = arg.substr(equalsPos+1);
+
+        if(key == "config")
+        {
+            ReadConfigFile(value.c_str());
+        }
+        else
+        {
+            printf("%s = %s\n", key.c_str(), value.c_str());
+            g_ConfigValues[key] = value;
+        }
+    }
 }
 
 std::string GetConfigString( const char* key, const char* defaultValue )
 {
-	const std::map<std::string, std::string>::const_iterator i =
-		g_ConfigValues.find(key);
-	
-	if(i != g_ConfigValues.end())
-		return i->second;
-	else
-		return defaultValue;
+    const std::map<std::string, std::string>::const_iterator i =
+        g_ConfigValues.find(key);
+    
+    if(i != g_ConfigValues.end())
+        return i->second;
+    else
+        return defaultValue;
 }
 
 int GetConfigInt( const char* key, int defaultValue )
 {
-	const std::string str = GetConfigString(key, "");
-	return str.empty() ? defaultValue : atoi(str.c_str());
+    const std::string str = GetConfigString(key, "");
+    return str.empty() ? defaultValue : atoi(str.c_str());
 }
 
 float GetConfigFloat( const char* key, float defaultValue )
 {
-	const std::string str = GetConfigString(key, "");
-	return str.empty() ? defaultValue : atof(str.c_str());
+    const std::string str = GetConfigString(key, "");
+    return str.empty() ? defaultValue : atof(str.c_str());
 }
 
 bool GetConfigBool( const char* key, bool defaultValue )
 {
-	const std::string str = GetConfigString(key, "");
-	switch(str[0])
-	{
-		case '0':
-		case 'f':
-		case 'F':
-			return false;
+    const std::string str = GetConfigString(key, "");
+    if(str.empty())
+        return defaultValue;
 
-		case '1':
-		case 't':
-		case 'T':
-			return true;
+    switch(str[0])
+    {
+        case '0':
+        case 'f':
+        case 'F':
+            return false;
 
-		default:
-			return defaultValue;
-	}
+        case '1':
+        case 't':
+        case 'T':
+            return true;
+
+        default:
+            return defaultValue;
+    }
 }
 
 // -------
 
 void SetSignals( void (*sigfn)(int) )
 {
-	signal(SIGABRT, sigfn);
-	signal(SIGFPE,  sigfn);
-	signal(SIGILL,  sigfn);
-	signal(SIGINT,  sigfn);
-	signal(SIGSEGV, sigfn);
-	signal(SIGTERM, sigfn);
+    signal(SIGABRT, sigfn);
+    signal(SIGFPE,  sigfn);
+    signal(SIGILL,  sigfn);
+    signal(SIGINT,  sigfn);
+    signal(SIGSEGV, sigfn);
+    signal(SIGTERM, sigfn);
 }
 
 void PanicExit( int sig )
 {
-	SetSignals(SIG_DFL);
-	vmanPanicExit();
-	exit(EXIT_FAILURE);
+    SetSignals(SIG_DFL);
+    vmanPanicExit();
+    exit(EXIT_FAILURE);
 }
 
 // ----------
@@ -275,82 +292,82 @@ tthread::condition_variable g_StopStatisticsCV;
 
 void WriteStatistics( const Configuration* config, FILE* file, time_t startTime )
 {
-	vmanStatistics statistics;
-	if(vmanGetStatistics(config->volume, &statistics) == false)
-		assert(false);
+    vmanStatistics statistics;
+    if(vmanGetStatistics(config->volume, &statistics) == false)
+        assert(false);
 
-	fprintf(file,
-		"%9.4f %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
-		difftime(time(NULL), startTime),
-		statistics.chunkGetHits,
-		statistics.chunkGetMisses,
-		statistics.chunkLoadOps,
-		statistics.chunkSaveOps,
-		statistics.chunkUnloadOps,
-		statistics.readOps,
-		statistics.writeOps,
-		statistics.maxLoadedChunks,
-		statistics.maxScheduledChecks,
-		statistics.maxEnqueuedJobs
-	);
+    fprintf(file,
+        "%9.4f %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
+        difftime(time(NULL), startTime),
+        statistics.chunkGetHits,
+        statistics.chunkGetMisses,
+        statistics.chunkLoadOps,
+        statistics.chunkSaveOps,
+        statistics.chunkUnloadOps,
+        statistics.readOps,
+        statistics.writeOps,
+        statistics.maxLoadedChunks,
+        statistics.maxScheduledChecks,
+        statistics.maxEnqueuedJobs
+    );
 
-	vmanResetStatistics(config->volume);
+    vmanResetStatistics(config->volume);
 }
 
 void StatisticsWriterThread( void* context )
 {
-	tthread::lock_guard<tthread::mutex> guard(g_StopStatisticsMutex);
+    tthread::lock_guard<tthread::mutex> guard(g_StopStatisticsMutex);
     const Configuration* config = (Configuration*)context;
 
-	const time_t startTime = time(NULL);
-	FILE* statisticsFile;
-	if(config->statisticsFile.empty())
-	{
-		statisticsFile = stdout;
-	}
-	else
-	{
-		statisticsFile = fopen(config->statisticsFile.c_str(), "w");
-		fprintf(statisticsFile,
-			"# time "
-			"chunkGetHits "
-			"chunkGetMisses "
-			"chunkLoadOps "
-			"chunkSaveOps "
-			"chunkUnloadOps "
-			"readOps "
-			"writeOps "
-			"maxLoadedChunks "
-			"maxScheduledChecks "
-			"maxEnqueuedJobs\n"
-		);
-	}
+    const time_t startTime = time(NULL);
+    FILE* statisticsFile;
+    if(config->statisticsFile.empty())
+    {
+        statisticsFile = stdout;
+    }
+    else
+    {
+        statisticsFile = fopen(config->statisticsFile.c_str(), "w");
+        fprintf(statisticsFile,
+            "# time "
+            "chunkGetHits "
+            "chunkGetMisses "
+            "chunkLoadOps "
+            "chunkSaveOps "
+            "chunkUnloadOps "
+            "readOps "
+            "writeOps "
+            "maxLoadedChunks "
+            "maxScheduledChecks "
+            "maxEnqueuedJobs\n"
+        );
+    }
 
-	if(config->secondsPerStatisticSample > 0.0f)
-	{
-		while(true)
-		{
-			 WriteStatistics(config, statisticsFile, startTime);
+    if(config->secondsPerStatisticSample > 0.0f)
+    {
+        while(true)
+        {
+             WriteStatistics(config, statisticsFile, startTime);
 
-			 g_StopStatisticsCV.wait_for(
-				 g_StopStatisticsMutex,
-				 tthread::chrono::milliseconds( config->secondsPerStatisticSample*1000 )
-			 );
+             g_StopStatisticsCV.wait_for(
+                 g_StopStatisticsMutex,
+                 tthread::chrono::milliseconds( config->secondsPerStatisticSample*1000 )
+             );
 
-			 if(g_StopStatistics)
-				 break;
-		}
-	}
-	else
-	{
-		while(g_StopStatistics == false)
-			g_StopStatisticsCV.wait(g_StopStatisticsMutex);
-	}
+             if(g_StopStatistics)
+                 break;
+        }
+    }
+    else
+    {
+        while(g_StopStatistics == false)
+            g_StopStatisticsCV.wait(g_StopStatisticsMutex);
+    }
 
-	WriteStatistics(config, statisticsFile, startTime);
+    WriteStatistics(config, statisticsFile, startTime);
 
-	if(statisticsFile != stdout)
-		fclose(statisticsFile);
+    if(statisticsFile != stdout)
+        fclose(statisticsFile);
 }
 
 
@@ -359,9 +376,9 @@ void StatisticsWriterThread( void* context )
 
 int main( int argc, char* argv[] )
 {
-	SetSignals(PanicExit);
+    SetSignals(PanicExit);
 
-	ReadConfigValues(argc, argv);
+    ReadConfigValues(argc, argv);
 
     srand(time(NULL));
 
@@ -370,70 +387,69 @@ int main( int argc, char* argv[] )
     vmanLayer* layers = CreateLayers(layerCount, layerSize);
     const int chunkEdgeLength = GetConfigInt("chunk.edge-length", 8);
     const std::string volumeDir = GetConfigString("volume.directory", "");
+    const bool statisticsEnabled = GetConfigBool("statistics.enabled", false);
+
+    vmanInit(NULL, false);
+    vmanSetUnusedChunkTimeout(GetConfigInt("chunk.unused-timeout", 4));
+    vmanSetModifiedChunkTimeout(GetConfigInt("chunk.modified-timeout", 3));
 
     Configuration config;
-
-	vmanVolumeParameters volumeParams;
-	vmanInitVolumeParameters(&volumeParams);
-	volumeParams.layers = layers;
-	volumeParams.layerCount = layerCount;
-	volumeParams.chunkEdgeLength = chunkEdgeLength;
-	volumeParams.baseDir = volumeDir.empty() ? NULL : volumeDir.c_str();
-	volumeParams.enableStatistics = true;
-    config.volume = vmanCreateVolume(&volumeParams);
-
-	vmanSetUnusedChunkTimeout(config.volume, GetConfigInt("chunk.unused-timeout", 4));
-	vmanSetModifiedChunkTimeout(config.volume, GetConfigInt("chunk.modified-timeout", 3));
-
     config.layers = layers;
     config.layerCount = layerCount;
     config.iterations = GetConfigInt("thread.iterations", 100);
     config.maxSelectionDistance = GetConfigInt("thread.max-selection-distance", 10);
     config.maxSelectionSize = GetConfigInt("thread.max-selection_size", 10);
-	config.minWait = GetConfigFloat("thread.min-wait", 0);
-	config.maxWait = GetConfigFloat("thread.max-wait", 0);
+    config.minWait = GetConfigFloat("thread.min-wait", 0);
+    config.maxWait = GetConfigFloat("thread.max-wait", 0);
+    config.volume = vmanCreateVolume(
+        layers,
+        layerCount,
+        chunkEdgeLength,
+        volumeDir.empty() ? NULL : volumeDir.c_str()
+    );
+    config.secondsPerStatisticSample = GetConfigFloat("statistics.seconds-per-sample", 0);
+    config.statisticsFile = GetConfigString("statistics.file", "");
 
-	const bool statisticsEnabled = GetConfigBool("statistics.enabled", false);
-	config.secondsPerStatisticSample = GetConfigFloat("statistics.seconds-per-sample", 0);
-	config.statisticsFile = GetConfigString("statistics.file", "");
+    tthread::thread* statisticsWriterThread = NULL;
+    if(statisticsEnabled)
+        statisticsWriterThread = new tthread::thread(StatisticsWriterThread, &config, "StatWriter");
 
-	tthread::thread* statisticsWriterThread = NULL;
-	if(statisticsEnabled)
-		statisticsWriterThread = new tthread::thread(StatisticsWriterThread, &config, "StatWriter");
-
-	const int threadCount = GetConfigInt("thread.count", 1);
+    const int threadCount = GetConfigInt("thread.count", 1);
     for(int i = 0; i < threadCount; ++i)
     {
-		char buffer[32];
-		sprintf(buffer, "Benchmarker %d", i);
+        char buffer[32];
+        sprintf(buffer, "Benchmarker %d", i);
         threads.push_back( new tthread::thread(BenchmarkerThread, &config, buffer) );
     }
 
-	for(int i = 0; i < threads.size(); ++i)
-	{
-		if(threads[i]->joinable())
-			threads[i]->join();
-		delete threads[i];
-	}
+    for(int i = 0; i < threads.size(); ++i)
+    {
+        if(threads[i]->joinable())
+            threads[i]->join();
+        delete threads[i];
+    }
 
     puts("## Benchmark threads stopped.");
 
-	if(statisticsWriterThread)
-	{
-		g_StopStatisticsMutex.lock();
-		g_StopStatistics = true;
-		g_StopStatisticsMutex.unlock();
-		g_StopStatisticsCV.notify_all();
+    if(statisticsWriterThread)
+    {
+        g_StopStatisticsMutex.lock();
+        g_StopStatistics = true;
+        g_StopStatisticsMutex.unlock();
+        g_StopStatisticsCV.notify_all();
 
-		statisticsWriterThread->join();
-		delete statisticsWriterThread;
-	}
+        statisticsWriterThread->join();
+        delete statisticsWriterThread;
+    }
 
     vmanDeleteVolume(config.volume);
     puts("## Volume deleted.");
 
     DestroyLayers(layers, layerCount);
-    puts("## Success!");
 
+    vmanDeinit();
+    puts("## Manager deleted.");
+
+    puts("## Success!");
     return 0;
 }

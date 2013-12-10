@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "Util.h"
+#include "Manager.h"
 #include "Volume.h"
 #include "Chunk.h"
 
@@ -61,9 +62,10 @@ Chunk::Chunk( Volume* volume, int chunkX, int chunkY, int chunkZ ) :
     m_ChunkY(chunkY),
     m_ChunkZ(chunkZ),
     m_Layers(volume->getLayerCount()), // n layers initialized with NULL
-    m_Modified(false)
+    m_Modified(false),
+    m_References(0)
 {
-	memset(&m_Layers[0], 0, m_Layers.size()*sizeof(char*));
+    memset(&m_Layers[0], 0, m_Layers.size()*sizeof(char*));
 }
 
 Chunk::~Chunk()
@@ -187,7 +189,7 @@ static const int ChunkFileVersion = 1;
 
 bool Chunk::loadFromFile()
 {
-    m_Volume->incStatistic(STATISTIC_CHUNK_LOAD_OPS);
+    //m_Volume->incStatistic(STATISTIC_CHUNK_LOAD_OPS);
 
     m_Volume->log(VMAN_LOG_DEBUG, "Loading chunk %s from file ..\n", toString().c_str());
 
@@ -213,7 +215,7 @@ bool Chunk::loadFromFile()
         // -- Read header --
         ChunkFileHeader header;
         if(fread(&header, sizeof(header), 1, f) != 1)
-            throw "Read error in file header.";
+            throw std::string("Read error in file header.");
         header.version = LittleEndian(header.version);
         header.edgeLength = LittleEndian(header.edgeLength);
         header.layerCount = LittleEndian(header.layerCount);
@@ -223,7 +225,7 @@ bool Chunk::loadFromFile()
         m_Volume->log(VMAN_LOG_DEBUG, "layerCount: %d\n", header.layerCount);
 
         if(header.version != ChunkFileVersion)
-            throw "Incorrect file version.";
+            throw std::string("Incorrect file version.");
 
         std::vector<ChunkFileLayerInfo> layerInfos(header.layerCount);
 
@@ -290,7 +292,7 @@ bool Chunk::loadFromFile()
 
 bool Chunk::saveToFile()
 {
-    m_Volume->incStatistic(STATISTIC_CHUNK_SAVE_OPS);
+    //m_Volume->incStatistic(STATISTIC_CHUNK_SAVE_OPS);
 
     m_Volume->log(VMAN_LOG_DEBUG, "Saving chunk %s to file ..\n", toString().c_str());
 
@@ -380,7 +382,7 @@ void Chunk::releaseReference()
     assert(m_References > 0);
     if(--m_References == 0)
     {
-        m_Volume->scheduleCheck(Volume::CHECK_CAUSE_UNUSED, this);
+        Manager::Singleton()->scheduleCheck(Manager::CHECK_CAUSE_UNUSED, m_Volume, this);
     }
     //m_Volume->log(VMAN_LOG_DEBUG, "%p references-- = %d\n", this, (int)m_References);
 }
@@ -406,7 +408,7 @@ void Chunk::setModified()
     {
         m_Modified = true;
         m_ModificationTime = time(NULL);
-        m_Volume->scheduleCheck(Volume::CHECK_CAUSE_MODIFIED, this);
+        Manager::Singleton()->scheduleCheck(Manager::CHECK_CAUSE_MODIFIED, m_Volume, this);
     }
 }
 

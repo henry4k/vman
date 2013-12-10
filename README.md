@@ -1,4 +1,4 @@
-# VMAN (Voxel MANager)
+# VMan (Voxel MANager)
 
 ## Introduction
 
@@ -7,26 +7,28 @@ A library which manages voxel volumes of arbitrary size.
 Features:
 - Portable across all POSIX complatible systems and Windows.
 - Provides just a simple C API, which simplifies writing bindings for other languages.
-- Is completly thread safe, so your game server should have no problems handly many requests at once.
+- Is thread safe, so your game server should have no problems handling many requests at once.
 - Tries not to waste resources like system memory or disk space.
 
 
 ### Chunks
 
-VMAN divides the volume into chunks for easier management.
+VMan divides the volume into chunks for easier management.
 But this is invisible to the user. (Except if you take a look at the directory where they're stored.)
-The API exposes no way to access them directly.
-TODO: Explain why chunks are hidden to the user.
+However, the API exposes no way to access them directly,
+
+TODO: Explain why chunks are hidden to the user. (Optimization, Abstraction)
 
 
 ### Layers
 
 Voxel can consist of multiple data layers.
-Each layer can have an arbitrary size and custom serialization functions.
+Each layer has an arbitrary size and custom serialization functions.
 (E.g. if you need floating point values for performance reasons, but want to store the data as a single byte.)
 
 Layers are optional: Voxels can store data in them, but don't have to.
 In that case the layer defaults to zero at that position.
+
 TODO: Explain the concept of layers better. => Complatiblity, versioning and custom data (For mods like in Minecraft or similar games)
 
 
@@ -45,7 +47,7 @@ Stable and nightly builds can be found here: http://vman.henry4k.de/builds
 
 - mkdir build
 - cd build
-- ccmake ..
+- cmake ..
 - make
 - sudo make install
 :)

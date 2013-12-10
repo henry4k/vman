@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-
 #include <Volume.h>
 #include <Chunk.h>
+#include <Manager.h>
 #include <Access.h>
 
 using namespace vman;
@@ -30,14 +30,9 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-	vmanVolumeParameters volumeParams;
-	vmanInitVolumeParameters(&volumeParams);
-	volumeParams.layers = layers;
-	volumeParams.layerCount = LAYER_COUNT;
-	volumeParams.chunkEdgeLength = CHUNK_EDGE_LENGTH;
-	volumeParams.baseDir = ".";
-    Volume volume(&volumeParams);
-	
+    Manager::Init(NULL, false);
+    Volume volume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
+
     Access access(&volume);
 
     {
@@ -62,7 +57,7 @@ int main()
     {
         access.lock(VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
         char* voxel = (char*)access.readWriteVoxelLayer(0,0,0, BASE_LAYER);
-		assert(voxel != NULL);
+        assert(voxel != NULL);
         *voxel = 'X';
         access.unlock();
     }
@@ -70,7 +65,7 @@ int main()
     {
         access.lock(VMAN_READ_ACCESS);
         const char* voxel = (const char*)access.readVoxelLayer(0,0,0, BASE_LAYER);
-		assert(voxel != NULL);
+        assert(voxel != NULL);
         assert(*voxel == 'X');
         access.unlock();
     }
@@ -82,6 +77,7 @@ int main()
         access.unlock();
     }
 
+    Manager::Deinit();
     puts("No problems detected.");
 
     return 0;

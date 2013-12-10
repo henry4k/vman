@@ -1,26 +1,26 @@
 Projektantrag:
 
 Beschreibung:
-	Bibliothek zum Management von Voxeldaten in einem unbegrenztem Raum:
-	- Laden und Speichern zum Dateisystem.
-	- Verwaltung und speicher-optimierte Lagerung der Daten im RAM.
+    Bibliothek zum Management von Voxeldaten in einem unbegrenztem Raum:
+    - Laden und Speichern zum Dateisystem.
+    - Verwaltung und speicher-optimierte Lagerung der Daten im RAM.
 
 Brainstorming:
-	- Kümmert sich um das Laden und Speichern von Voxeln (=> Chunks).
-	- Voxel haben mehrere Datenlayer, welche im Ausgangszustand keinen Speicher einnehmen, sondern von einem Default-Wert repräsentiert werden.
-	- Von aussen hat man nur Zugriff auf Voxel-Ebene, die Chunks und Threads sind nur intern verfügbar.
-	- C-Interface um die Bibliothek leichter in anderen Sprachen einbindne zu können.
-	- Die Anwendung kann mit primitiven Objekten der Bibliothek sagen welche Voxel für sie gerade interessant sind, bzw welche bald interessant werden könnten.
-	- Frisch geladene Chunks, sowie Chunks welcher länger nicht mehr geändert wurden, werden komprimiert im Speicher gehalten.
-		- D.h. beim Laden könnten die komprimierten Voxel 1:1 im RAM landen.
-	- Das Laden/Entladen passiert in Threads.
-	- Die Applikation kann Events bzw Callbacks in der Bibliothek registrieren um über Block-Änderungen u.Ä. informiert zu werden.
-	- Die Applikation kann auch zusätzliche Daten für z.B. Tile-Entities verwalten lassen.
-		- Diese werden dann z.B. im entsprechenden Chunk gespeichert.
+    - Kümmert sich um das Laden und Speichern von Voxeln (=> Chunks).
+    - Voxel haben mehrere Datenlayer, welche im Ausgangszustand keinen Speicher einnehmen, sondern von einem Default-Wert repräsentiert werden.
+    - Von aussen hat man nur Zugriff auf Voxel-Ebene, die Chunks und Threads sind nur intern verfügbar.
+    - C-Interface um die Bibliothek leichter in anderen Sprachen einbindne zu können.
+    - Die Anwendung kann mit primitiven Objekten der Bibliothek sagen welche Voxel für sie gerade interessant sind, bzw welche bald interessant werden könnten.
+    - Frisch geladene Chunks, sowie Chunks welcher länger nicht mehr geändert wurden, werden komprimiert im Speicher gehalten.
+        - D.h. beim Laden könnten die komprimierten Voxel 1:1 im RAM landen.
+    - Das Laden/Entladen passiert in Threads.
+    - Die Applikation kann Events bzw Callbacks in der Bibliothek registrieren um über Block-Änderungen u.Ä. informiert zu werden.
+    - Die Applikation kann auch zusätzliche Daten für z.B. Tile-Entities verwalten lassen.
+        - Diese werden dann z.B. im entsprechenden Chunk gespeichert.
 
 Layer:
-	Haben einen Namen und einen Versionsstring.
-	Innerhalb der Anwendung werden sie über einen Index angesprochen.
+    Haben einen Namen und einen Versionsstring.
+    Innerhalb der Anwendung werden sie über einen Index angesprochen.
 
 
 
@@ -218,20 +218,81 @@ Offline werden diese als Index-Werte gespeichert, welche auf einen Bereich in ei
 
 
 
+Volume und Access als Interface.
+vmanCreateVolume() kann je nach Parametern unterschiedliche Volumen-Objekte erzeugen.
+Die Parameter lassen sich wie bei OpenGL setzen/auslesen?
+Das Volumen-Objekt erzeugt seine Access-Objekte.
+
+Beispiel:
+
+Volume3d
+Access3d
+
+Volume2d
+Access2d
+
+
+C-Funktionen geben möglichst immer einen Fehlercode zurück. (0 == Alles okay)
+Hm ... oder so? .. Weil ich mein, was soll man mit einem Fehlercode anfangen?
+Also zu Wissen, *dass* der Aufruf fehlgeschlagen ist, macht auf jeden Fall Sinn.
+Nur ob das Programm dann auch auf einen spezifischen Fehler reagieren würde ist fraglich.
+Die korrekten Fehlernachrichten werden ohnehin über die Log-Funktion ausgegeben.
+
+
+
+Allgemeines Panic-Callback-System, welches einen Mutex und eine verlinkte Liste benutzt.
+
+
+
+Interface-Klassen für Load/Save-Jobs und Scheduled Tasks
 
 
 
 
 
+Memory-Soft-Cap:
+    CheckChunk() entläd keine Chunks solange eine bestimmte Speichernutzung der Chunks nicht überschritten wurde.
+    Immer wenn Speicher für einen Layer allokalisiert werden muss, wird getestet ob man sich noch unter dem Limit befindet.
+    Falls nicht, werden solange unbenutzte Chunks gelöscht bis genügend Speicher frei ist.
+    Wenn es keine unbenutzen Chunks mehr gibt, wird normal weitergemacht. (Ist wie gesagt nur ein Soft-Cap!)
+    Die unbenutzten Chunks werden Volume-Übergreifend im Manager in einer verlinkten Liste gehalten.
+    Neue unbenutzte Chunks werden ans Ende gelegt und sobald ein Chunk wieder genutzt wird, wird er aus der Liste gelöscht.
+
+    Das ganze hat den Zweck die Zugriffszeiten zu verkleinern. (Solange bis der Speicher eben knapp wird.)
+
+
+
+Manager bekommt mit wenn Volumes erzeugt/gelöscht werden.
+Dieser hat einen Ref-Count auf alle Volumes, welche IO nutzen.
+Die IO-Threads werden gestartet sobald der Ref-Count über 0 geht und gestoppt sobald er wieder bei 0 ist.
+
+
+
+Es macht keinen Sinn mehrere Manager-Instanzen zu haben. Das verkompliziert die Sache nur.
+Eigentlich braucht man insgesammt nur einen "Manager".
+Dieser würde zu Anfangs mit vmanInit() erzeugt und mit vmanDeinit() am Ende gelöscht werden.
 
 
 
 
+Volume speichert Referenzen o.Ä. auf den jeweils letzten ScheduledChunk und I/O-Job.
 
 
+Volume::saveAllModifiedChunks( int priorityOffset )
+    Jetzt neu mit Prioritätsoffset.
 
+Manager::flushXYZ( Volume* volume )
+    Setzt die Priorität der betroffenen Einträge hoch.
+    Sortiert die Liste neu.
+    Setzt die Referenzen im Volume.
+    Wartet über mithilfe einer ConVar auf Abschluss.
+    Die Worker-Threads triggern die ConVar sobald der letzte ScheduledChunk bzw I/O-Job bearbeitet wurde.
 
+Manager::
 
+Volume:
+    ScheduledCheck m_LastScheduledCheck;
+    ConVar         m_LastScheduledCheckDone;
 
-
-
+    IOJob          m_LastIOJob;
+    ConVar         m_LastIOJobDone;

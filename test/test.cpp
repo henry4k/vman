@@ -25,13 +25,8 @@ static const int CHUNK_EDGE_LENGTH = 8;
 
 int main()
 {
-	vmanVolumeParameters volumeParams;
-	vmanInitVolumeParameters(&volumeParams);
-	volumeParams.layers = layers;
-	volumeParams.layerCount = LAYER_COUNT;
-	volumeParams.chunkEdgeLength = CHUNK_EDGE_LENGTH;
-	volumeParams.baseDir = ".";
-    vmanVolume volume = vmanCreateVolume(&volumeParams);
+    vmanInit(NULL, false);
+    vmanVolume volume = vmanCreateVolume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
 
     vmanAccess access = vmanCreateAccess(volume);
     vmanSelection selection =
@@ -41,7 +36,7 @@ int main()
     }; // 4*4*4 cube
     vmanSelect(access, &selection);
     vmanLockAccess(access, VMAN_READ_ACCESS|VMAN_WRITE_ACCESS);
-    
+
     int32_t* baseVoxel;
     baseVoxel = (int32_t*)vmanReadWriteVoxelLayer(access, 0,0,0, BASE_LAYER);
     *baseVoxel = 4000;
@@ -55,7 +50,8 @@ int main()
 
     vmanUnlockAccess(access);
     vmanDeleteAccess(access);
-    
+
     vmanDeleteVolume(volume);
+    vmanDeinit();
     return 0;
 }

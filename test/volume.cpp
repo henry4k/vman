@@ -1,5 +1,6 @@
 #include <string.h>
 #include <assert.h>
+#include <Manager.h>
 #include <Volume.h>
 
 using namespace vman;
@@ -34,13 +35,8 @@ void TestLayersForEquallity( const vmanLayer* a, const vmanLayer* b )
 
 int main()
 {
-	vmanVolumeParameters volumeParams;
-	vmanInitVolumeParameters(&volumeParams);
-	volumeParams.layers = layers;
-	volumeParams.layerCount = LAYER_COUNT;
-	volumeParams.chunkEdgeLength = CHUNK_EDGE_LENGTH;
-	volumeParams.baseDir = ".";
-    Volume volume(&volumeParams);
+    Manager::Init(NULL, false);
+    Volume volume(layers, LAYER_COUNT, CHUNK_EDGE_LENGTH, ".");
 
     assert(volume.getLayerCount() == LAYER_COUNT);
     assert(volume.getMaxLayerVoxelSize() == 1);
@@ -54,5 +50,6 @@ int main()
     assert(volume.getLayerIndexByName("nonexistent") == -1);
     assert(strcmp(volume.getBaseDir(), ".") == 0);
 
+    Manager::Deinit();
     return 0;
 }

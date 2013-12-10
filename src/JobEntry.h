@@ -5,6 +5,7 @@
 namespace vman
 {
 
+class Volume;
 class Chunk;
 
 enum JobType
@@ -55,7 +56,7 @@ public:
      * @param priority
      * The higher the job priority the earlier it will be processed by the job workers.
      */
-    JobEntry( int priority, JobType type, Chunk* chunk );
+    JobEntry( int priority, JobType type, Volume* volume, Chunk* chunk );
 
     JobEntry( const JobEntry& e );
     JobEntry& operator = ( const JobEntry& e );
@@ -65,11 +66,13 @@ public:
 
     int     getPriority() const;
     JobType getType() const;
+    Volume* getVolume() const;
     Chunk*  getChunk() const;
 
 private:
     int     m_Priority;
     JobType m_Type;
+    Volume* m_Volume;
     Chunk*  m_Chunk;
 };
 
