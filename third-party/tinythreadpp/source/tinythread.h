@@ -784,7 +784,7 @@ struct atomic {
     {
 #ifdef _TTHREAD_HAS_ATOMIC_BUILTINS_
       // FIXME: Use something more suitable here
-      return __sync_add_and_fetch((volatile T*)&mValue, 0);
+      return __sync_add_and_fetch(const_cast<volatile T*>(&mValue), 0);
 #else
       lock_guard<mutex> guard(mLock);
       return mValue;

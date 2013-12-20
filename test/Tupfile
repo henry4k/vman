@@ -10,7 +10,7 @@ CFLAGS += $(WARNINGS)
 
 : foreach *.cpp |> !cxx |> %B.o
 
-LDFLAGS += $(INI_A) $(TINYTHREADPP_A) $(VMAN_LIB)
+LDFLAGS += $(VMAN_LIB) $(INI_A) $(TINYTHREADPP_A)
 : foreach *.o | $(INI_A) $(TINYTHREADPP_A) $(VMAN_LIB) |> !ldcxx |> %B$(BINARY_POSTFIX)
 
-: runTestSuite.sh.in |> !varsed-script |> runTestSuite.sh
+: test.sh.in |> !varsed-script |> test.sh

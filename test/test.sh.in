@@ -1,0 +1,76 @@
+#! /bin/bash
+
+# Shamelessly stolen from https://github.com/gittup/tup/blob/master/test/test.sh
+
+# Use as:
+# To run a single test: ./test.sh t0000-init.sh
+# To run all tests: ./test.sh
+# To run all tests without stopping on errors: ./test.sh --keep-going
+
+#alias realpath="python -c 'import sys;import os;print os.path.realpath(sys.argv[1])'"
+function realpath()
+{
+    python -c "import os;print os.path.realpath('$1')"
+}
+
+vmanRoot="$(realpath "$(dirname "$0")/..")"
+export VMAN_ROOT="$vmanRoot"
+
+# Set colors
+if [ -t 1 ]; then # test if stdout is a terminal
+    ErrorColor='\033[31m'
+    SectionColor='\033[36m'
+    ResetColor='\033[0m'
+else
+    ErrorColor=''
+    SectionColor=''
+    ResetColor=''
+fi
+
+# Handle --keep-going
+KeepGoing=0
+if [[ "$1" == '--keep-going' ]]; then
+    KeepGoing=1
+    shift
+elif [[ "$1" == '-k' ]]; then
+    KeepGoing=1
+    shift
+fi
+
+# Handle test scripts
+Tests="$@"
+if [[ "$Tests" == '' ]]; then
+    Tests=$(find "$(dirname "$0")/suite" -executable)
+fi
+
+# Setup temp dir
+TempDir="/tmp/vmanTest-$RANDOM"
+mkdir -p "$TempDir"
+trap "rm -rf $TempDir" EXIT
+
+# Run tests
+for t in $Tests; do
+    echo -e "$SectionColor --- Runing $t --- $ResetColor"
+
+    # Prepare temp dir
+    rm -rf "$TempDir/*" # Clean up previous garbage
+    if [[ '@SHARED@' == 'y' ]]; then
+        ln -s "$vmanRoot/src/@NAME@" "$TempDir/"
+    fi
+
+    # Run test in temp dir
+    absTest="$(realpath $t)"
+    originalWD="$PWD"
+    cd "$TempDir"
+    $("$absTest")
+    status="$?"
+    cd "$originalWD"
+
+    # Handle test result
+    if [[ "$status" != '0' ]]; then
+        echo -e "$ErrorColor *** $t failed $ResetColor"
+        if [[ "$KeepGoing" == '0' ]]; then
+            exit 1
+        fi
+    fi
+done
